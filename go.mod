@@ -1,4 +1,4 @@
-module github.com/domyid/testapi
+module github.com/domyid/domyapi
 
 go 1.21
 
