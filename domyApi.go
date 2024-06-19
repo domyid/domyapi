@@ -2,30 +2,238 @@ package domyApi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
+	"strings"
+	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-querystring/query"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func Get[T any](urltarget string) (result T, errormessage string) {
-	resp, err := http.Get(urltarget)
+func Get(urltarget string, cookies map[string]string, headers map[string]string) (result []byte, err error) {
+	// Create a cookie jar
+	jar, err := cookiejar.New(nil)
 	if err != nil {
-		errormessage = err.Error()
-		return
+		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
+	}
+
+	// Create an HTTP client with the cookie jar
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	// Create a new request
+	req, err := http.NewRequest("GET", urltarget, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add cookies to the request
+	for name, value := range cookies {
+		req.AddCookie(&http.Cookie{
+			Name:  name,
+			Value: value,
+		})
+	}
+
+	// Add additional headers to the request
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	// Make the GET request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make GET request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		errormessage = "Error Read data from Response." + err.Error()
-		return
+		return nil, fmt.Errorf("error reading data from response: %w", err)
 	}
-	if er := json.Unmarshal(body, &result); er != nil {
-		errormessage = "Error Unmarshal from Response." + er.Error()
+
+	return body, nil
+}
+
+// Get adalah fungsi untuk melakukan permintaan HTTP GET dan mengembalikan informasi mahasiswa dalam bentuk JSON
+func GetMahasiswa(urltarget string, cookies map[string]string, headers map[string]string) (string, error) {
+	// Buat cookie jar
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create cookie jar: %w", err)
 	}
-	return
+
+	// Buat HTTP client dengan cookie jar
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	// Buat permintaan baru
+	req, err := http.NewRequest("GET", urltarget, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Tambahkan cookies ke permintaan
+	for name, value := range cookies {
+		req.AddCookie(&http.Cookie{
+			Name:  name,
+			Value: value,
+		})
+	}
+
+	// Tambahkan headers tambahan ke permintaan
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	// Lakukan permintaan GET
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make GET request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response body dengan goquery
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %w", err)
+	}
+
+	// Ekstrak informasi mahasiswa dengan trim spasi
+	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
+	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
+	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
+	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
+
+	// Buat instance Mahasiswa
+	mahasiswa := Mahasiswa{
+		NIM:          nim,
+		Nama:         nama,
+		ProgramStudi: programStudi,
+		NoHp:         noHp,
+	}
+
+	// Konversi ke JSON
+	jsonData, err := json.Marshal(mahasiswa)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	return string(jsonData), nil
+}
+
+// Get adalah fungsi untuk melakukan permintaan HTTP GET dan mengembalikan informasi mahasiswa dalam bentuk JSON
+func GetDosen(urltarget string, cookies map[string]string, headers map[string]string) (string, error) {
+	// Buat cookie jar
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create cookie jar: %w", err)
+	}
+
+	// Buat HTTP client dengan cookie jar
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	// Buat permintaan baru
+	req, err := http.NewRequest("GET", urltarget, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Tambahkan cookies ke permintaan
+	for name, value := range cookies {
+		req.AddCookie(&http.Cookie{
+			Name:  name,
+			Value: value,
+		})
+	}
+
+	// Tambahkan headers tambahan ke permintaan
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	// Lakukan permintaan GET
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make GET request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response body dengan goquery
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %w", err)
+	}
+
+	// Ekstrak informasi dosen dengan trim spasi
+	nip := strings.TrimSpace(doc.Find("#block-nip .input-nip").Text())
+	nidn := strings.TrimSpace(doc.Find("#block-nidn .input-nidn").Text())
+	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
+	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
+
+	// Buat instance Dosen
+	dosen := Dosen{
+		NIP:  nip,
+		NIDN: nidn,
+		Nama: nama,
+		NoHp: noHp,
+	}
+
+	// Konversi ke JSON
+	jsonData, err := json.Marshal(dosen)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	return string(jsonData), nil
+}
+
+// SaveToMongoDB adalah fungsi untuk menyimpan data mahasiswa ke MongoDB
+func SaveToMongoDB(jsonData string, mongoURI string, dbName string, collectionName string) error {
+	// Koneksi ke MongoDB
+	client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		return fmt.Errorf("failed to create MongoDB client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = client.Connect(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to MongoDB: %w", err)
+	}
+	defer client.Disconnect(ctx)
+
+	collection := client.Database(dbName).Collection(collectionName)
+
+	// Konversi JSON string ke BSON
+	var document interface{}
+	err = json.Unmarshal([]byte(jsonData), &document)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	// Simpan data ke MongoDB
+	_, err = collection.InsertOne(ctx, document)
+	if err != nil {
+		return fmt.Errorf("failed to insert document into MongoDB: %w", err)
+	}
+
+	fmt.Println("Data berhasil disimpan ke MongoDB")
+	return nil
 }
 
 func GetStruct(structname interface{}, urltarget string) (errormessage string) {
