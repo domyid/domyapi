@@ -12,9 +12,13 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
+	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
 	"github.com/google/go-querystring/query"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -66,7 +70,6 @@ func Get(urltarget string, cookies map[string]string, headers map[string]string)
 	return body, nil
 }
 
-// Get adalah fungsi untuk melakukan permintaan HTTP GET dan mengembalikan informasi mahasiswa dalam bentuk JSON
 func GetMahasiswa(urltarget string, cookies map[string]string, headers map[string]string) (string, error) {
 	// Buat cookie jar
 	jar, err := cookiejar.New(nil)
@@ -119,10 +122,29 @@ func GetMahasiswa(urltarget string, cookies map[string]string, headers map[strin
 
 	// Buat instance Mahasiswa
 	mahasiswa := model.Mahasiswa{
+		ID:           primitive.NewObjectID(),
 		NIM:          nim,
 		Nama:         nama,
 		ProgramStudi: programStudi,
 		NoHp:         noHp,
+	}
+
+	// Cek apakah data mahasiswa sudah ada di database
+	filter := bson.M{"nim": mahasiswa.NIM}
+	var existingMahasiswa model.Mahasiswa
+	err = config.Mongoconn.Collection("mahasiswa").FindOne(context.TODO(), filter).Decode(&existingMahasiswa)
+	if err == nil {
+		// Data sudah ada, tidak perlu menambah data baru
+		jsonData, err := json.Marshal(existingMahasiswa)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		return string(jsonData), nil
+	}
+
+	// Simpan ke MongoDB jika data belum ada
+	if _, err := atdb.InsertOneDoc(config.Mongoconn, "mahasiswa", mahasiswa); err != nil {
+		return "", fmt.Errorf("failed to insert document into MongoDB: %w", err)
 	}
 
 	// Konversi ke JSON

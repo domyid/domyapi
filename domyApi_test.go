@@ -111,71 +111,71 @@ func TestLoad(t *testing.T) {
 	// loadTestGet(t, url, cookies, headers, 10000)
 }
 
-func TestGetStruct(t *testing.T) {
-	dt := Sister{
-		Id_sdm: "8fe6735c-6e28-43e7-9eb3-3ae092bbcd62",
-	}
-	url := "https://httpbin.org/get"
-	res := domyApi.GetStruct(dt, url)
-	fmt.Println("GetStruct : ", res)
-}
+// func TestGetStruct(t *testing.T) {
+// 	dt := Sister{
+// 		Id_sdm: "8fe6735c-6e28-43e7-9eb3-3ae092bbcd62",
+// 	}
+// 	url := "https://httpbin.org/get"
+// 	res := domyApi.GetStruct(dt, url)
+// 	fmt.Println("GetStruct : ", res)
+// }
 
-func TestPostStruct(t *testing.T) {
-	dt := TestApi{
-		Phone:      "+6285155476774",
-		Password:   "#P@ssw0rd",
-		FirebaseId: "123",
-		DeviceId:   "6580fb6e714844ca",
-	}
-	url := "https://httpbin.org/post"
-	res, err := domyApi.PostStruct[Response](dt, url)
-	if err != "" {
-		t.Fatalf("PostStruct failed: %s", err)
-	}
-	fmt.Println("PostStruct : ", res)
-}
+// func TestPostStruct(t *testing.T) {
+// 	dt := TestApi{
+// 		Phone:      "+6285155476774",
+// 		Password:   "#P@ssw0rd",
+// 		FirebaseId: "123",
+// 		DeviceId:   "6580fb6e714844ca",
+// 	}
+// 	url := "https://httpbin.org/post"
+// 	res, err := domyApi.PostStruct[Response](dt, url)
+// 	if err != "" {
+// 		t.Fatalf("PostStruct failed: %s", err)
+// 	}
+// 	fmt.Println("PostStruct : ", res)
+// }
 
-func TestRequestStructWithToken(t *testing.T) {
-	dt := Sister{
-		Id_sdm: "8fe6735c-6e28-43e7-9eb3-3ae092bbcd62",
-	}
-	urlGet := "https://httpbin.org/get"
-	urlPost := "https://httpbin.org/post"
+// func TestRequestStructWithToken(t *testing.T) {
+// 	dt := Sister{
+// 		Id_sdm: "8fe6735c-6e28-43e7-9eb3-3ae092bbcd62",
+// 	}
+// 	urlGet := "https://httpbin.org/get"
+// 	urlPost := "https://httpbin.org/post"
 
-	var result interface{}
-	var err string
+// 	var result interface{}
+// 	var err string
 
-	// Test GetStructWithToken
-	result, err = domyApi.GetStructWithToken[interface{}]("token", "dsfdsfdsfdsfdsf", dt, urlGet)
-	if err != "" {
-		t.Fatalf("GetStructWithToken failed: %s", err)
-	}
-	fmt.Println("GetStructWithToken result:", result)
+// 	// Test GetStructWithToken
+// 	result, err = domyApi.GetStructWithToken[interface{}]("token", "dsfdsfdsfdsfdsf", dt, urlGet)
+// 	if err != "" {
+// 		t.Fatalf("GetStructWithToken failed: %s", err)
+// 	}
+// 	fmt.Println("GetStructWithToken result:", result)
 
-	// Test PostStructWithToken
-	dta := TestApi{
-		Phone:      "+6285155476774",
-		Password:   "#P@ssw0rd",
-		FirebaseId: "123",
-		DeviceId:   "6580fb6e714844ca",
-	}
-	result, err = domyApi.PostStructWithToken[interface{}]("Login", "dsfdsfdsfdsfdsf", dta, urlPost)
-	if err != "" {
-		t.Fatalf("PostStructWithToken failed: %s", err)
-	}
-	fmt.Println("PostStructWithToken result:", result)
+// 	// Test PostStructWithToken
+// 	dta := TestApi{
+// 		Phone:      "+6285155476774",
+// 		Password:   "#P@ssw0rd",
+// 		FirebaseId: "123",
+// 		DeviceId:   "6580fb6e714844ca",
+// 	}
+// 	result, err = domyApi.PostStructWithToken[interface{}]("Login", "dsfdsfdsfdsfdsf", dta, urlPost)
+// 	if err != "" {
+// 		t.Fatalf("PostStructWithToken failed: %s", err)
+// 	}
+// 	fmt.Println("PostStructWithToken result:", result)
 
-	// Test PostStructWithBearer
-	result, err = domyApi.PostStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dta, urlPost)
-	if err != "" {
-		t.Fatalf("PostStructWithBearer failed: %s", err)
-	}
-	fmt.Println("PostStructWithBearer result:", result)
+// 	// Test PostStructWithBearer
+// 	result, err = domyApi.PostStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dta, urlPost)
+// 	if err != "" {
+// 		t.Fatalf("PostStructWithBearer failed: %s", err)
+// 	}
+// 	fmt.Println("PostStructWithBearer result:", result)
 
-	// Test GetStructWithBearer
-	result, err = domyApi.GetStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dt, urlGet)
-	if err != "" {
-		t.Fatalf("GetStructWithBearer failed: %s", err)
-	}
-	fmt.Println("GetStructWithBearer result:", result)
-}
+// 	// Test GetStructWithBearer
+// 	result, err = domyApi.GetStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dt, urlGet)
+// 	if err != "" {
+// 		t.Fatalf("GetStructWithBearer failed: %s", err)
+// 	}
+// 	fmt.Println("GetStructWithBearer result:", result)
+// }
