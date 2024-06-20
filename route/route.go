@@ -3,8 +3,8 @@ package domyApi
 import (
 	"net/http"
 
-	"github.com/domyapi/config"
-	"github.com/gocroot/controller"
+	config "github.com/domyid/domyapi/config"
+	controller "github.com/domyid/domyapi/controller"
 )
 
 func URL(w http.ResponseWriter, r *http.Request) {
@@ -13,10 +13,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	}
 	config.SetEnv()
 
-	var method, path string = r.Method, r.URL.Path
+	// var method, path string = r.Method, r.URL.Path
 	switch {
-	case method == "GET" && path == "/":
-		controller.GetHome(w, r)
+	// case method == "GET" && path == "/":
+	// 	controller.getMahasiswa(w, r)
 
 	default:
 		controller.NotFound(w, r)

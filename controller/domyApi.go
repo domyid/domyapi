@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	at "github.com/domyid/domyapi/helper/at"
+	model "github.com/domyid/domyapi/model"
 	"github.com/google/go-querystring/query"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -116,7 +118,7 @@ func GetMahasiswa(urltarget string, cookies map[string]string, headers map[strin
 	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
 
 	// Buat instance Mahasiswa
-	mahasiswa := Mahasiswa{
+	mahasiswa := model.Mahasiswa{
 		NIM:          nim,
 		Nama:         nama,
 		ProgramStudi: programStudi,
@@ -184,7 +186,7 @@ func GetDosen(urltarget string, cookies map[string]string, headers map[string]st
 	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
 
 	// Buat instance Dosen
-	dosen := Dosen{
+	dosen := model.Dosen{
 		NIP:  nip,
 		NIDN: nidn,
 		Nama: nama,
@@ -419,4 +421,10 @@ func PutStructWithBearer[T any](tokenbearer string, structname interface{}, urlt
 		errormessage = "Error Unmarshal from Response." + er.Error()
 	}
 	return
+}
+
+func NotFound(respw http.ResponseWriter, req *http.Request) {
+	var resp model.Response
+	resp.Response = "Not Found"
+	at.WriteJSON(respw, http.StatusNotFound, resp)
 }

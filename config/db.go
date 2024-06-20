@@ -3,14 +3,14 @@ package domyApi
 import (
 	"os"
 
-	"github.com/domyapi/helper/atdb"
+	atdb "github.com/domyid/domyapi/helper/atdb"
 )
 
 var MongoString string = os.Getenv("MONGOSTRING")
 
 var mongoinfo = atdb.DBInfo{
 	DBString: MongoString,
-	DBName:   "domyid",
+	DBName:   "siakad",
 }
 
 var Mongoconn, ErrorMongoconn = atdb.MongoConnect(mongoinfo)

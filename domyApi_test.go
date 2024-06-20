@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	domyApi "github.com/domyid/domyapi/controller"
 )
 
 type TestApi struct {
@@ -43,7 +45,7 @@ func TestGet(t *testing.T) {
 	}
 
 	// Make the GET request
-	body, err := Get("https://siakad.ulbi.ac.id/siakad/data_mahasiswa", cookies, headers)
+	body, err := domyApi.Get("https://siakad.ulbi.ac.id/siakad/data_mahasiswa", cookies, headers)
 	if err != nil {
 		t.Fatalf("Failed to get data: %s", err)
 	}
@@ -75,7 +77,7 @@ func loadTestGet(t *testing.T, url string, cookies map[string]string, headers ma
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := Get(url, cookies, headers)
+			_, err := domyApi.Get(url, cookies, headers)
 			if err != nil {
 				t.Errorf("Failed to get data: %s", err)
 			}
@@ -114,7 +116,7 @@ func TestGetStruct(t *testing.T) {
 		Id_sdm: "8fe6735c-6e28-43e7-9eb3-3ae092bbcd62",
 	}
 	url := "https://httpbin.org/get"
-	res := GetStruct(dt, url)
+	res := domyApi.GetStruct(dt, url)
 	fmt.Println("GetStruct : ", res)
 }
 
@@ -126,7 +128,7 @@ func TestPostStruct(t *testing.T) {
 		DeviceId:   "6580fb6e714844ca",
 	}
 	url := "https://httpbin.org/post"
-	res, err := PostStruct[Response](dt, url)
+	res, err := domyApi.PostStruct[Response](dt, url)
 	if err != "" {
 		t.Fatalf("PostStruct failed: %s", err)
 	}
@@ -144,7 +146,7 @@ func TestRequestStructWithToken(t *testing.T) {
 	var err string
 
 	// Test GetStructWithToken
-	result, err = GetStructWithToken[interface{}]("token", "dsfdsfdsfdsfdsf", dt, urlGet)
+	result, err = domyApi.GetStructWithToken[interface{}]("token", "dsfdsfdsfdsfdsf", dt, urlGet)
 	if err != "" {
 		t.Fatalf("GetStructWithToken failed: %s", err)
 	}
@@ -157,21 +159,21 @@ func TestRequestStructWithToken(t *testing.T) {
 		FirebaseId: "123",
 		DeviceId:   "6580fb6e714844ca",
 	}
-	result, err = PostStructWithToken[interface{}]("Login", "dsfdsfdsfdsfdsf", dta, urlPost)
+	result, err = domyApi.PostStructWithToken[interface{}]("Login", "dsfdsfdsfdsfdsf", dta, urlPost)
 	if err != "" {
 		t.Fatalf("PostStructWithToken failed: %s", err)
 	}
 	fmt.Println("PostStructWithToken result:", result)
 
 	// Test PostStructWithBearer
-	result, err = PostStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dta, urlPost)
+	result, err = domyApi.PostStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dta, urlPost)
 	if err != "" {
 		t.Fatalf("PostStructWithBearer failed: %s", err)
 	}
 	fmt.Println("PostStructWithBearer result:", result)
 
 	// Test GetStructWithBearer
-	result, err = GetStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dt, urlGet)
+	result, err = domyApi.GetStructWithBearer[interface{}]("dsfdsfdsfdsfdsf", dt, urlGet)
 	if err != "" {
 		t.Fatalf("GetStructWithBearer failed: %s", err)
 	}
