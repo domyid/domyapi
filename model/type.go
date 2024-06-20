@@ -12,7 +12,7 @@ type Mahasiswa struct {
 	NIM          string             `bson:"nim,omitempty" json:"nim,omitempty"`
 	Nama         string             `bson:"nama,omitempty" json:"nama,omitempty"`
 	ProgramStudi string             `bson:"program_studi,omitempty" json:"program_studi,omitempty"`
-	Nohp         string             `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
+	NomorHp      string             `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
 }
 
 type Dosen struct {

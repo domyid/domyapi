@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	config "github.com/domyid/domyapi/config"
@@ -19,8 +18,6 @@ import (
 	"github.com/google/go-querystring/query"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func Get(urltarget string, cookies map[string]string, headers map[string]string) (result []byte, err error) {
@@ -126,7 +123,7 @@ func GetMahasiswa(urltarget string, cookies map[string]string, headers map[strin
 		NIM:          nim,
 		Nama:         nama,
 		ProgramStudi: programStudi,
-		NoHp:         noHp,
+		NomorHp:      noHp,
 	}
 
 	// Cek apakah data mahasiswa sudah ada di database
@@ -156,7 +153,6 @@ func GetMahasiswa(urltarget string, cookies map[string]string, headers map[strin
 	return string(jsonData), nil
 }
 
-// Get adalah fungsi untuk melakukan permintaan HTTP GET dan mengembalikan informasi mahasiswa dalam bentuk JSON
 func GetDosen(urltarget string, cookies map[string]string, headers map[string]string) (string, error) {
 	// Buat cookie jar
 	jar, err := cookiejar.New(nil)
@@ -209,10 +205,29 @@ func GetDosen(urltarget string, cookies map[string]string, headers map[string]st
 
 	// Buat instance Dosen
 	dosen := model.Dosen{
+		ID:   primitive.NewObjectID(),
 		NIP:  nip,
 		NIDN: nidn,
 		Nama: nama,
 		NoHp: noHp,
+	}
+
+	// Cek apakah data dosen sudah ada di database
+	filter := bson.M{"nip": dosen.NIP}
+	var existingDosen model.Dosen
+	err = config.Mongoconn.Collection("dosen").FindOne(context.TODO(), filter).Decode(&existingDosen)
+	if err == nil {
+		// Data sudah ada, tidak perlu menambah data baru
+		jsonData, err := json.Marshal(existingDosen)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		return string(jsonData), nil
+	}
+
+	// Simpan ke MongoDB jika data belum ada
+	if _, err := atdb.InsertOneDoc(config.Mongoconn, "dosen", dosen); err != nil {
+		return "", fmt.Errorf("failed to insert document into MongoDB: %w", err)
 	}
 
 	// Konversi ke JSON
@@ -222,42 +237,6 @@ func GetDosen(urltarget string, cookies map[string]string, headers map[string]st
 	}
 
 	return string(jsonData), nil
-}
-
-// SaveToMongoDB adalah fungsi untuk menyimpan data mahasiswa ke MongoDB
-func SaveToMongoDB(jsonData string, mongoURI string, dbName string, collectionName string) error {
-	// Koneksi ke MongoDB
-	client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))
-	if err != nil {
-		return fmt.Errorf("failed to create MongoDB client: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	err = client.Connect(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to connect to MongoDB: %w", err)
-	}
-	defer client.Disconnect(ctx)
-
-	collection := client.Database(dbName).Collection(collectionName)
-
-	// Konversi JSON string ke BSON
-	var document interface{}
-	err = json.Unmarshal([]byte(jsonData), &document)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal JSON: %w", err)
-	}
-
-	// Simpan data ke MongoDB
-	_, err = collection.InsertOne(ctx, document)
-	if err != nil {
-		return fmt.Errorf("failed to insert document into MongoDB: %w", err)
-	}
-
-	fmt.Println("Data berhasil disimpan ke MongoDB")
-	return nil
 }
 
 func GetStruct(structname interface{}, urltarget string) (errormessage string) {
