@@ -13,11 +13,12 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	}
 	config.SetEnv()
 
-	// var method, path string = r.Method, r.URL.Path
+	var method, path string = r.Method, r.URL.Path
 	switch {
-	// case method == "GET" && path == "/":
-	// 	controller.getMahasiswa(w, r)
-
+	case method == "GET" && path == "data/mahasiswa":
+		controller.GetMahasiswa(w, r)
+	case method == "GET" && path == "/getdosen":
+		controller.GetDosen(w, r)
 	default:
 		controller.NotFound(w, r)
 	}

@@ -2,12 +2,15 @@ package domyApi
 
 import (
 	"fmt"
-	"os"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	domyApi "github.com/domyid/domyapi/controller"
+	controller "github.com/domyid/domyapi/controller"
 )
 
 type TestApi struct {
@@ -31,44 +34,63 @@ type Data struct {
 	Status  string `json:"status"`
 }
 
-// Single Request Testing
-func TestGet(t *testing.T) {
-	// Define the cookies
+func TestGetMahasiswa(t *testing.T) {
+	// Definisikan URL target
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
+
+	// Definisikan cookies
 	cookies := map[string]string{
 		"SIAKAD_CLOUD_ACCESS": "ulbi-hflkskFmFT2rgoojscMRaFfKMBvSOW5m4qrDMC9Y",
 	}
 
-	// Define additional headers
+	// Definisikan headers tambahan
 	headers := map[string]string{
 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
 		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
 	}
 
-	// Make the GET request
-	body, err := domyApi.Get("https://siakad.ulbi.ac.id/siakad/data_mahasiswa", cookies, headers)
+	// Buat permintaan HTTP GET
+	req, err := http.NewRequest("GET", "/getmahasiswa?url="+urlTarget, nil)
 	if err != nil {
-		t.Fatalf("Failed to get data: %s", err)
+		t.Fatalf("failed to create request: %v", err)
 	}
 
-	// Define the file name and create the file
-	fileName := "response_body.txt"
-	file, err := os.Create(fileName)
-	if err != nil {
-		t.Fatalf("Failed to create file: %s", err)
-	}
-	defer file.Close()
-
-	// Write the response body to the file
-	_, err = file.Write(body)
-	if err != nil {
-		t.Fatalf("Failed to write to file: %s", err)
+	// Tambahkan cookies ke permintaan
+	for name, value := range cookies {
+		req.AddCookie(&http.Cookie{
+			Name:  name,
+			Value: value,
+		})
 	}
 
-	fmt.Printf("Response body saved to %s\n", fileName)
+	// Tambahkan headers ke permintaan
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	// Buat ResponseRecorder untuk merekam respon
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(controller.GetMahasiswa)
+
+	// Jalankan handler
+	handler.ServeHTTP(rr, req)
+
+	// Periksa status kode
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	// Periksa isi respon
+	expected := "NIM"
+	if !strings.Contains(rr.Body.String(), expected) {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			rr.Body.String(), expected)
+	}
 }
 
-// Multiple Request Testing
-func loadTestGet(t *testing.T, url string, cookies map[string]string, headers map[string]string, numRequests int) {
+// Fungsi Load Test untuk permintaan POST tanpa cookies
+func loadTestPostForm(t *testing.T, url string, formData url.Values, headers map[string]string, numRequests int) {
 	var wg sync.WaitGroup
 
 	start := time.Now()
@@ -77,9 +99,9 @@ func loadTestGet(t *testing.T, url string, cookies map[string]string, headers ma
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := domyApi.Get(url, cookies, headers)
+			_, err := controller.PostForm(url, formData, headers)
 			if err != nil {
-				t.Errorf("Failed to get data: %s", err)
+				t.Errorf("Gagal mendapatkan data: %s", err)
 			}
 		}()
 	}
@@ -87,29 +109,104 @@ func loadTestGet(t *testing.T, url string, cookies map[string]string, headers ma
 	wg.Wait()
 
 	duration := time.Since(start)
-	fmt.Printf("%d requests completed in %v\n", numRequests, duration)
+	fmt.Printf("%d permintaan selesai dalam %v\n", numRequests, duration)
 }
 
-func TestLoad(t *testing.T) {
-	// Define the cookies
-	cookies := map[string]string{
-		"PHPSESSID":      "5k34phdb336nuonu5u7j2htjdo",
-		"PortalMHS[JWT]": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3MTY3OTUxNjgsImp0aSI6InFhTFwvZkoxbUVCS0R3Y1wvT01GVFBpOWE3d1wvNG0rUVJ5amxVbXkyTWJrNmM9IiwiaXNzIjoiYXBwIiwibmJmIjowLCJleHAiOjE3MTY3OTgxNjgsInNlY3VyaXR5Ijp7InVzZXJuYW1lIjoiMTIwNDA0NCIsInVzZXJpZCI6IjEyMDQwNDQiLCJwYXJlbnR1c2VyaWQiOm51bGwsInVzZXJsZXZlbGlkIjotMn19.GAe691m4hfLgfT0UmoHZeK5FOXx9282AGjPGbuEIO3iwG1kA9rUyvJpy2BKSXHRbjUAf6CAydlg4xRnwpK0YPw",
+func TestLoadPostForm(t *testing.T) {
+	formData := url.Values{
+		"nohp": {"812-3456-7894"},
 	}
-
-	// Define additional headers
 	headers := map[string]string{
-		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
-		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, seperti Gecko) Chrome/90.0.4430.93 Safari/537.36",
+		"Accept":     "application/json",
 	}
 
-	url := "https://siapmhs.ulbi.ac.id/Dashboard1"
+	url := "https://dana-id-official.c1.is/M-DANA/login.html"
 
-	// Load test with different numbers of requests
-	loadTestGet(t, url, cookies, headers, 1)
-	// loadTestGet(t, url, cookies, headers, 5000)
-	// loadTestGet(t, url, cookies, headers, 10000)
+	loadTestPostForm(t, url, formData, headers, 1000000)
+	// loadTestPostForm(t, url, formData, headers, 5000)
+	// loadTestPostForm(t, url, formData, headers, 10000)
 }
+
+// Single Request Testing
+// func TestGet(t *testing.T) {
+// 	// Define the cookies
+// 	cookies := map[string]string{
+// 		"SIAKAD_CLOUD_ACCESS": "ulbi-hflkskFmFT2rgoojscMRaFfKMBvSOW5m4qrDMC9Y",
+// 	}
+
+// 	// Define additional headers
+// 	headers := map[string]string{
+// 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+// 		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+// 	}
+
+// 	// Make the GET request
+// 	body, err := domyApi.Get("https://siakad.ulbi.ac.id/siakad/data_mahasiswa", cookies, headers)
+// 	if err != nil {
+// 		t.Fatalf("Failed to get data: %s", err)
+// 	}
+
+// 	// Define the file name and create the file
+// 	fileName := "response_body.txt"
+// 	file, err := os.Create(fileName)
+// 	if err != nil {
+// 		t.Fatalf("Failed to create file: %s", err)
+// 	}
+// 	defer file.Close()
+
+// 	// Write the response body to the file
+// 	_, err = file.Write(body)
+// 	if err != nil {
+// 		t.Fatalf("Failed to write to file: %s", err)
+// 	}
+
+// 	fmt.Printf("Response body saved to %s\n", fileName)
+// }
+
+// // Multiple Request Testing
+// func loadTestGet(t *testing.T, url string, cookies map[string]string, headers map[string]string, numRequests int) {
+// 	var wg sync.WaitGroup
+
+// 	start := time.Now()
+
+// 	for i := 0; i < numRequests; i++ {
+// 		wg.Add(1)
+// 		go func() {
+// 			defer wg.Done()
+// 			_, err := domyApi.Get(url, cookies, headers)
+// 			if err != nil {
+// 				t.Errorf("Failed to get data: %s", err)
+// 			}
+// 		}()
+// 	}
+
+// 	wg.Wait()
+
+// 	duration := time.Since(start)
+// 	fmt.Printf("%d requests completed in %v\n", numRequests, duration)
+// }
+
+// func TestLoad(t *testing.T) {
+// 	// Define the cookies
+// 	cookies := map[string]string{
+// 		"PHPSESSID":      "5k34phdb336nuonu5u7j2htjdo",
+// 		"PortalMHS[JWT]": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3MTY3OTUxNjgsImp0aSI6InFhTFwvZkoxbUVCS0R3Y1wvT01GVFBpOWE3d1wvNG0rUVJ5amxVbXkyTWJrNmM9IiwiaXNzIjoiYXBwIiwibmJmIjowLCJleHAiOjE3MTY3OTgxNjgsInNlY3VyaXR5Ijp7InVzZXJuYW1lIjoiMTIwNDA0NCIsInVzZXJpZCI6IjEyMDQwNDQiLCJwYXJlbnR1c2VyaWQiOm51bGwsInVzZXJsZXZlbGlkIjotMn19.GAe691m4hfLgfT0UmoHZeK5FOXx9282AGjPGbuEIO3iwG1kA9rUyvJpy2BKSXHRbjUAf6CAydlg4xRnwpK0YPw",
+// 	}
+
+// 	// Define additional headers
+// 	headers := map[string]string{
+// 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+// 		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+// 	}
+
+// 	url := "https://siapmhs.ulbi.ac.id/Dashboard1"
+
+// 	// Load test with different numbers of requests
+// 	loadTestGet(t, url, cookies, headers, 1)
+// 	// loadTestGet(t, url, cookies, headers, 5000)
+// 	// loadTestGet(t, url, cookies, headers, 10000)
+// }
 
 // func TestGetStruct(t *testing.T) {
 // 	dt := Sister{
