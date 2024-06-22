@@ -16,18 +16,13 @@ import (
 )
 
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
-	urltarget := req.URL.Query().Get("url")
-	if urltarget == "" {
-		http.Error(respw, "url query parameter is required", http.StatusBadRequest)
-		return
-	}
+	urltarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
 
 	cookies := make(map[string]string)
 	for _, cookie := range req.Cookies() {
 		cookies[cookie.Name] = cookie.Value
 	}
 
-	log.Printf("Fetching data from URL: %s with cookies: %v", urltarget, cookies)
 	doc, err := api.GetData(urltarget, cookies, nil)
 	if err != nil {
 		http.Error(respw, fmt.Sprintf("failed to fetch data: %v", err), http.StatusInternalServerError)
@@ -39,8 +34,6 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
 	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
 	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
-
-	log.Printf("Extracted data - NIM: %s, Nama: %s, ProgramStudi: %s, NoHp: %s", nim, nama, programStudi, noHp)
 
 	// Buat instance Mahasiswa
 	mahasiswa := model.Mahasiswa{
