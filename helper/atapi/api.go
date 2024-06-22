@@ -33,7 +33,7 @@ func Get[T any](urltarget string) (statusCode int, result T, err error) {
 	return
 }
 
-func GetData(urltarget string, cookies map[string]string, headers map[string]string) (result []byte, err error) {
+func GetwithUrl(urltarget string, cookies map[string]string, headers map[string]string) (result []byte, err error) {
 	// Create a cookie jar
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -264,7 +264,7 @@ func PutStructWithBearer[T any](tokenbearer string, structname interface{}, urlt
 	return
 }
 
-func FetchDataFromURL(urltarget string, cookies map[string]string, headers map[string]string) (*goquery.Document, error) {
+func GetData(urltarget string, cookies map[string]string, headers map[string]string) (*goquery.Document, error) {
 	// Buat cookie jar
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -318,7 +318,7 @@ func FetchDataFromURL(urltarget string, cookies map[string]string, headers map[s
 }
 
 // PostDataToURL sends a POST request with form data and file to the specified URL.
-func PostDataToURL(urltarget string, cookies map[string]string, formData map[string]string, fileFieldName, filePath string) (*http.Response, error) {
+func PostData(urltarget string, cookies map[string]string, formData map[string]string, fileFieldName, filePath string) (*http.Response, error) {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 

@@ -28,7 +28,7 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	log.Printf("Fetching data from URL: %s with cookies: %v", urltarget, cookies)
-	doc, err := api.FetchDataFromURL(urltarget, cookies, nil)
+	doc, err := api.GetData(urltarget, cookies, nil)
 	if err != nil {
 		http.Error(respw, fmt.Sprintf("failed to fetch data: %v", err), http.StatusInternalServerError)
 		return
@@ -96,7 +96,7 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	fileFieldName := "lampiran[]"
 	filePath := "" // Kosongkan path file
 
-	resp, err := api.PostDataToURL(urlTarget, cookies, formData, fileFieldName, filePath)
+	resp, err := api.PostData(urlTarget, cookies, formData, fileFieldName, filePath)
 	if err != nil {
 		log.Printf("Error in PostBimbinganMahasiswa: %v", err)
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
@@ -123,7 +123,7 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 
 	}
 
-	doc, err := api.FetchDataFromURL(urltarget, nil, nil)
+	doc, err := api.GetData(urltarget, nil, nil)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
