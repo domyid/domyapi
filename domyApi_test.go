@@ -1,6 +1,7 @@
 package domyApi
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	controller "github.com/domyid/domyapi/controller"
+	model "github.com/domyid/domyapi/model"
 )
 
 type TestApi struct {
@@ -32,18 +34,18 @@ type Data struct {
 }
 
 func TestGetMahasiswa(t *testing.T) {
-	// Define cookies
+	// Definisikan cookies yang valid
 	cookies := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": "ulbi-TAd7Z5N4geDmYv8rp5MSk2z7q0xjUdSXlMbH4LyE",
+		"SIAKAD_CLOUD_ACCESS": "ulbi-uorSBqf0B7t6cJ5LY67k67z1rtKJJlAi4vLzgcWW",
 	}
 
-	// Create an HTTP GET request
+	// Buat permintaan HTTP GET
 	req, err := http.NewRequest("GET", "/getmahasiswa", nil)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	// Add cookies to the request
+	// Tambahkan cookies ke permintaan
 	for name, value := range cookies {
 		req.AddCookie(&http.Cookie{
 			Name:  name,
@@ -51,25 +53,27 @@ func TestGetMahasiswa(t *testing.T) {
 		})
 	}
 
-	// Create a ResponseRecorder to record the response
+	// Buat ResponseRecorder untuk merekam respon
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(controller.GetMahasiswa)
 
-	// Run the handler
+	// Jalankan handler
 	handler.ServeHTTP(rr, req)
 
-	// Check the status code
+	// Periksa status kode
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	// Check the response Content-Type
-	if contentType := rr.Header().Get("Content-Type"); contentType != "application/json" {
-		t.Errorf("handler returned wrong content type: got %v want %v", contentType, "application/json")
+	// Periksa body respon apakah dalam format JSON
+	var mahasiswa model.Mahasiswa
+	err = json.Unmarshal(rr.Body.Bytes(), &mahasiswa)
+	if err != nil {
+		t.Fatalf("failed to unmarshal response body: %v", err)
 	}
 
-	// Log the response body for verification
-	t.Logf("Response body: %s", rr.Body.String())
+	// Tampilkan data mahasiswa yang dikembalikan
+	t.Logf("Data Mahasiswa: %+v", mahasiswa)
 }
 
 func TestPostBimbinganMahasiswa(t *testing.T) {

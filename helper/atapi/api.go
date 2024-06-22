@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"os"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-querystring/query"
@@ -264,25 +263,14 @@ func PutStructWithBearer[T any](tokenbearer string, structname interface{}, urlt
 	return
 }
 
-func GetData(urltarget string, cookies map[string]string, headers map[string]string) (*goquery.Document, error) {
-	// Buat cookie jar
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
-	}
-
-	// Buat HTTP client dengan cookie jar
-	client := &http.Client{
-		Jar: jar,
-	}
-
-	// Buat permintaan baru
-	req, err := http.NewRequest("GET", urltarget, nil)
+// GetData fetches data from the specified URL using the provided cookies.
+func GetData(url string, cookies map[string]string, headers map[string]string) (*goquery.Document, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Tambahkan cookies ke permintaan
 	for name, value := range cookies {
 		req.AddCookie(&http.Cookie{
 			Name:  name,
@@ -290,28 +278,23 @@ func GetData(urltarget string, cookies map[string]string, headers map[string]str
 		})
 	}
 
-	// Tambahkan headers tambahan ke permintaan
-	for key, value := range headers {
-		req.Header.Add(key, value)
+	for name, value := range headers {
+		req.Header.Set(name, value)
 	}
 
-	// Lakukan permintaan GET
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make GET request: %w", err)
+		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Baca isi body respon
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	// Parse response body dengan goquery
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse response body: %w", err)
+		return nil, fmt.Errorf("failed to create document from response: %w", err)
 	}
 
 	return doc, nil

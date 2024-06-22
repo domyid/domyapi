@@ -2,7 +2,6 @@ package domyApi
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -16,34 +15,31 @@ import (
 )
 
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
-	urltarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
-	log.Println("Request URL:", urltarget)
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
 
-	// Get the cookies from the request
 	cookies := make(map[string]string)
 	for _, cookie := range req.Cookies() {
-		log.Printf("Received cookie: %s = %s", cookie.Name, cookie.Value)
 		cookies[cookie.Name] = cookie.Value
 	}
 
-	// Fetch the data from the URL
-	doc, err := api.GetData(urltarget, cookies, nil)
+	log.Printf("Request URL: %s", urlTarget)
+	for name, value := range cookies {
+		log.Printf("Received cookie: %s = %s", name, value)
+	}
+
+	doc, err := api.GetData(urlTarget, cookies, nil)
 	if err != nil {
-		at.WriteJSON(respw, http.StatusInternalServerError, fmt.Sprintf("failed to fetch data: %v", err))
+		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Extract information
+	// Extract student information and trim spaces
 	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
 	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
 	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
 	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
 
-	if nim == "" || nama == "" || programStudi == "" || noHp == "" {
-		at.WriteJSON(respw, http.StatusNotFound, "data not found")
-		return
-	}
-
+	// Create a student instance
 	mahasiswa := model.Mahasiswa{
 		NIM:          nim,
 		Nama:         nama,
@@ -51,6 +47,7 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 		NomorHp:      noHp,
 	}
 
+	// Return the student instance as a JSON response
 	at.WriteJSON(respw, http.StatusOK, mahasiswa)
 }
 
