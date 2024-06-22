@@ -1,9 +1,10 @@
 package domyApi
 
 import (
-	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	controller "github.com/domyid/domyapi/controller"
@@ -67,62 +68,33 @@ func TestGetMahasiswa(t *testing.T) {
 	}
 }
 
-func TestPostMahasiswa(t *testing.T) {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/964"
-	cookies := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": "ulbi-JIJs1ND52nmpOUkl3pmIo9DyRjKbmVWMDMqu9i9p",
-	}
+func TestPostBimbinganMahasiswa(t *testing.T) {
+	form := url.Values{}
+	form.Add("urlTarget", "https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/964")
+	form.Add("bimbinganke", "3")
+	form.Add("nip", "0410118609")
+	form.Add("tglbimbingan", "19-06-2024")
+	form.Add("topikbimbingan", "test")
+	form.Add("bahasan", "test")
+	form.Add("link[]", "https://app.clickup.com/9018309098/v/li/901801897629")
+	form.Add("key", "")
+	form.Add("act", "save")
 
-	formData := map[string]string{
-		"bimbinganke":    "4",
-		"nip":            "0410118609",
-		"tglbimbingan":   "22-06-2024",
-		"topikbimbingan": "perbaikan lagi",
-		"bahasan":        "perbaikan kodingan",
-		"link[]":         "",
-		"key":            "",
-		"act":            "save",
-	}
-
-	fileFieldName := "lampiran[]"
-	filePath := "" // Kosongkan path file
-
-	req, err := http.NewRequest("POST", "/postmahasiswa", nil)
+	req, err := http.NewRequest("POST", "/postbimbinganmahasiswa", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	// Set cookies
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(&http.Cookie{
 		Name:  "SIAKAD_CLOUD_ACCESS",
 		Value: "ulbi-JIJs1ND52nmpOUkl3pmIo9DyRjKbmVWMDMqu9i9p",
 	})
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp, err := controller.PostBimbinganMahasiswa(urlTarget, cookies, formData, fileFieldName, filePath)
-		if err != nil {
-			log.Printf("Error in PostMahasiswa: %v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-
-		log.Printf("Response Status: %v", resp.Status)
-		log.Printf("Response Headers: %v", resp.Header)
-
-		if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
-			http.Error(w, "unexpected status code", resp.StatusCode)
-			return
-		}
-
-		w.WriteHeader(resp.StatusCode)
-	})
+	handler := http.HandlerFunc(controller.PostBimbinganMahasiswa)
 
 	handler.ServeHTTP(rr, req)
-
-	log.Printf("Recorder Status: %v", rr.Code)
-	log.Printf("Recorder Body: %v", rr.Body.String())
 
 	if status := rr.Code; status != http.StatusSeeOther && status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusSeeOther)

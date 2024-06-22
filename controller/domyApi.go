@@ -70,8 +70,49 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 }
 
 // PostMahasiswa handles the POST request to add mahasiswa data.
-func PostBimbinganMahasiswa(urlTarget string, cookies map[string]string, formData map[string]string, fileFieldName, filePath string) (*http.Response, error) {
-	return api.PostDataToURL(urlTarget, cookies, formData, fileFieldName, filePath)
+func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
+	urlTarget := r.FormValue("urlTarget")
+	if urlTarget == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "urlTarget parameter is required")
+		return
+	}
+
+	cookies := make(map[string]string)
+	for _, cookie := range r.Cookies() {
+		cookies[cookie.Name] = cookie.Value
+	}
+
+	formData := map[string]string{
+		"bimbinganke":    r.FormValue("bimbinganke"),
+		"nip":            r.FormValue("nip"),
+		"tglbimbingan":   r.FormValue("tglbimbingan"),
+		"topikbimbingan": r.FormValue("topikbimbingan"),
+		"bahasan":        r.FormValue("bahasan"),
+		"link[]":         r.FormValue("link[]"),
+		"key":            r.FormValue("key"),
+		"act":            r.FormValue("act"),
+	}
+
+	fileFieldName := "lampiran[]"
+	filePath := "" // Kosongkan path file
+
+	resp, err := api.PostDataToURL(urlTarget, cookies, formData, fileFieldName, filePath)
+	if err != nil {
+		log.Printf("Error in PostBimbinganMahasiswa: %v", err)
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	// log.Printf("Response Status: %v", resp.Status)
+	// log.Printf("Response Headers: %v", resp.Header)
+
+	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
+		at.WriteJSON(w, resp.StatusCode, "unexpected status code")
+		return
+	}
+
+	at.WriteJSON(w, resp.StatusCode, "success")
 }
 
 func GetDosen(respw http.ResponseWriter, req *http.Request) {
@@ -79,11 +120,12 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 	if urltarget == "" {
 		http.Error(respw, "url query parameter is required", http.StatusBadRequest)
 		return
+
 	}
 
 	doc, err := api.FetchDataFromURL(urltarget, nil, nil)
 	if err != nil {
-		http.Error(respw, fmt.Sprintf("failed to fetch data: %v", err), http.StatusInternalServerError)
+		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
 	}
 
