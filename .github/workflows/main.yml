@@ -33,8 +33,8 @@ jobs:
             --gen2 \
             --runtime=go122 \
             --trigger-http \
-            --service-account domytest@domytest.iam.gserviceaccount.com \
-            --project domytest \
+            --service-account new-compute-service-account@domytest-426014.iam.gserviceaccount.com \
+            --project domytest-426014 \
             --set-env-vars=MONGOSTRING='${{ secrets.MONGOSTRING }}'
       - name: 'Cek eksistensi fungsi'
         run: 'gcloud functions describe domytest --region=asia-southeast2'
