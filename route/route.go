@@ -15,11 +15,11 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	var method, path string = r.Method, r.URL.Path
 
 	switch {
-	case method == "GET" && path == "data/mahasiswa":
+	case method == "GET" && path == "/data/mahasiswa":
 		controller.GetMahasiswa(w, r)
-	case method == "GET" && path == "data/dosen":
+	case method == "GET" && path == "/data/dosen":
 		controller.GetDosen(w, r)
-	case method == "POST" && path == "data/bimbingan/mahasiswa":
+	case method == "POST" && path == "/data/bimbingan/mahasiswa":
 		controller.PostBimbinganMahasiswa(w, r)
 	default:
 		controller.NotFound(w, r)
