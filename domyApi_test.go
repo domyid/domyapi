@@ -32,21 +32,18 @@ type Data struct {
 }
 
 func TestGetMahasiswa(t *testing.T) {
-	// Definisikan URL target
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
-
-	// Definisikan cookies
+	// Define cookies
 	cookies := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": "ulbi-JIJs1ND52nmpOUkl3pmIo9DyRjKbmVWMDMqu9i9p",
+		"SIAKAD_CLOUD_ACCESS": "ulbi-TAd7Z5N4geDmYv8rp5MSk2z7q0xjUdSXlMbH4LyE",
 	}
 
-	// Buat permintaan HTTP GET
-	req, err := http.NewRequest("GET", "/getmahasiswa?url="+urlTarget, nil)
+	// Create an HTTP GET request
+	req, err := http.NewRequest("GET", "/getmahasiswa", nil)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	// Tambahkan cookies ke permintaan
+	// Add cookies to the request
 	for name, value := range cookies {
 		req.AddCookie(&http.Cookie{
 			Name:  name,
@@ -54,18 +51,25 @@ func TestGetMahasiswa(t *testing.T) {
 		})
 	}
 
-	// Buat ResponseRecorder untuk merekam respon
+	// Create a ResponseRecorder to record the response
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(controller.GetMahasiswa)
 
-	// Jalankan handler
+	// Run the handler
 	handler.ServeHTTP(rr, req)
 
-	// Periksa status kode
+	// Check the status code
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
+
+	// Check the response Content-Type
+	if contentType := rr.Header().Get("Content-Type"); contentType != "application/json" {
+		t.Errorf("handler returned wrong content type: got %v want %v", contentType, "application/json")
+	}
+
+	// Log the response body for verification
+	t.Logf("Response body: %s", rr.Body.String())
 }
 
 func TestPostBimbinganMahasiswa(t *testing.T) {
