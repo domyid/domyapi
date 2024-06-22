@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -16,29 +17,33 @@ import (
 
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	urltarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
+	log.Println("Request URL:", urltarget)
 
+	// Get the cookies from the request
 	cookies := make(map[string]string)
 	for _, cookie := range req.Cookies() {
+		log.Printf("Received cookie: %s = %s", cookie.Name, cookie.Value)
 		cookies[cookie.Name] = cookie.Value
 	}
 
-	log.Printf("Fetching data from URL: %s with cookies: %v", urltarget, cookies)
+	// Fetch the data from the URL
 	doc, err := api.GetData(urltarget, cookies, nil)
 	if err != nil {
-		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		at.WriteJSON(respw, http.StatusInternalServerError, fmt.Sprintf("failed to fetch data: %v", err))
 		return
 	}
 
-	// Ekstrak informasi mahasiswa dengan trim spasi
+	// Extract information
 	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
 	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
 	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
 	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
 
-	// Log data extracted
-	log.Printf("Extracted data - NIM: %s, Nama: %s, ProgramStudi: %s, NoHp: %s", nim, nama, programStudi, noHp)
+	if nim == "" || nama == "" || programStudi == "" || noHp == "" {
+		at.WriteJSON(respw, http.StatusNotFound, "data not found")
+		return
+	}
 
-	// Buat instance Mahasiswa
 	mahasiswa := model.Mahasiswa{
 		NIM:          nim,
 		Nama:         nama,
@@ -46,32 +51,12 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 		NomorHp:      noHp,
 	}
 
-	// Cek apakah data mahasiswa sudah ada di database
-	filter := bson.M{"nim": mahasiswa.NIM}
-	var existingMahasiswa model.Mahasiswa
-	if err := config.Mongoconn.Collection("mahasiswa").FindOne(context.TODO(), filter).Decode(&existingMahasiswa); err == nil {
-		// Data sudah ada, tidak perlu menambah data baru
-		at.WriteJSON(respw, http.StatusOK, existingMahasiswa)
-		return
-	}
-
-	// Simpan ke MongoDB jika data belum ada
-	if _, err := atdb.InsertOneDoc(config.Mongoconn, "mahasiswa", mahasiswa); err != nil {
-		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// Konversi ke JSON dan kirimkan sebagai respon
 	at.WriteJSON(respw, http.StatusOK, mahasiswa)
 }
 
 // PostMahasiswa handles the POST request to add mahasiswa data.
 func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
-	urlTarget := r.FormValue("urlTarget")
-	if urlTarget == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "urlTarget parameter is required")
-		return
-	}
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/964"
 
 	cookies := make(map[string]string)
 	for _, cookie := range r.Cookies() {

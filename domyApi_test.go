@@ -163,7 +163,7 @@ func TestPostBimbinganMahasiswa(t *testing.T) {
 // func TestLoad(t *testing.T) {
 // 	// Define the cookies
 // 	cookies := map[string]string{
-// 		"PHPSESSID":      "5k34phdb336nuonu5u7j2htjdo",
+// 		"PHPSESSID":      "aj5naqvedtg60t142ohrj2n5jr",
 // 		"PortalMHS[JWT]": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3MTY3OTUxNjgsImp0aSI6InFhTFwvZkoxbUVCS0R3Y1wvT01GVFBpOWE3d1wvNG0rUVJ5amxVbXkyTWJrNmM9IiwiaXNzIjoiYXBwIiwibmJmIjowLCJleHAiOjE3MTY3OTgxNjgsInNlY3VyaXR5Ijp7InVzZXJuYW1lIjoiMTIwNDA0NCIsInVzZXJpZCI6IjEyMDQwNDQiLCJwYXJlbnR1c2VyaWQiOm51bGwsInVzZXJsZXZlbGlkIjotMn19.GAe691m4hfLgfT0UmoHZeK5FOXx9282AGjPGbuEIO3iwG1kA9rUyvJpy2BKSXHRbjUAf6CAydlg4xRnwpK0YPw",
 // 	}
 
