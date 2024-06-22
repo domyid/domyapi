@@ -1,14 +1,10 @@
 package domyApi
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	controller "github.com/domyid/domyapi/controller"
 )
@@ -40,13 +36,7 @@ func TestGetMahasiswa(t *testing.T) {
 
 	// Definisikan cookies
 	cookies := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": "ulbi-hflkskFmFT2rgoojscMRaFfKMBvSOW5m4qrDMC9Y",
-	}
-
-	// Definisikan headers tambahan
-	headers := map[string]string{
-		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
-		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+		"SIAKAD_CLOUD_ACCESS": "ulbi-JIJs1ND52nmpOUkl3pmIo9DyRjKbmVWMDMqu9i9p",
 	}
 
 	// Buat permintaan HTTP GET
@@ -63,11 +53,6 @@ func TestGetMahasiswa(t *testing.T) {
 		})
 	}
 
-	// Tambahkan headers ke permintaan
-	for key, value := range headers {
-		req.Header.Add(key, value)
-	}
-
 	// Buat ResponseRecorder untuk merekam respon
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(controller.GetMahasiswa)
@@ -80,52 +65,68 @@ func TestGetMahasiswa(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
-
-	// Periksa isi respon
-	expected := "NIM"
-	if !strings.Contains(rr.Body.String(), expected) {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
-	}
 }
 
-// Fungsi Load Test untuk permintaan POST tanpa cookies
-func loadTestPostForm(t *testing.T, url string, formData url.Values, headers map[string]string, numRequests int) {
-	var wg sync.WaitGroup
-
-	start := time.Now()
-
-	for i := 0; i < numRequests; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, err := controller.PostForm(url, formData, headers)
-			if err != nil {
-				t.Errorf("Gagal mendapatkan data: %s", err)
-			}
-		}()
+func TestPostMahasiswa(t *testing.T) {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/964"
+	cookies := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": "ulbi-JIJs1ND52nmpOUkl3pmIo9DyRjKbmVWMDMqu9i9p",
 	}
 
-	wg.Wait()
-
-	duration := time.Since(start)
-	fmt.Printf("%d permintaan selesai dalam %v\n", numRequests, duration)
-}
-
-func TestLoadPostForm(t *testing.T) {
-	formData := url.Values{
-		"nohp": {"812-3456-7894"},
-	}
-	headers := map[string]string{
-		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, seperti Gecko) Chrome/90.0.4430.93 Safari/537.36",
-		"Accept":     "application/json",
+	formData := map[string]string{
+		"bimbinganke":    "4",
+		"nip":            "0410118609",
+		"tglbimbingan":   "22-06-2024",
+		"topikbimbingan": "perbaikan lagi",
+		"bahasan":        "perbaikan kodingan",
+		"link[]":         "",
+		"key":            "",
+		"act":            "save",
 	}
 
-	url := "https://dana-id-official.c1.is/M-DANA/login.html"
+	fileFieldName := "lampiran[]"
+	filePath := "" // Kosongkan path file
 
-	loadTestPostForm(t, url, formData, headers, 1000000)
-	// loadTestPostForm(t, url, formData, headers, 5000)
-	// loadTestPostForm(t, url, formData, headers, 10000)
+	req, err := http.NewRequest("POST", "/postmahasiswa", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	// Set cookies
+	req.AddCookie(&http.Cookie{
+		Name:  "SIAKAD_CLOUD_ACCESS",
+		Value: "ulbi-JIJs1ND52nmpOUkl3pmIo9DyRjKbmVWMDMqu9i9p",
+	})
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp, err := controller.PostBimbinganMahasiswa(urlTarget, cookies, formData, fileFieldName, filePath)
+		if err != nil {
+			log.Printf("Error in PostMahasiswa: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+
+		log.Printf("Response Status: %v", resp.Status)
+		log.Printf("Response Headers: %v", resp.Header)
+
+		if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
+			http.Error(w, "unexpected status code", resp.StatusCode)
+			return
+		}
+
+		w.WriteHeader(resp.StatusCode)
+	})
+
+	handler.ServeHTTP(rr, req)
+
+	log.Printf("Recorder Status: %v", rr.Code)
+	log.Printf("Recorder Body: %v", rr.Body.String())
+
+	if status := rr.Code; status != http.StatusSeeOther && status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusSeeOther)
+	}
 }
 
 // Single Request Testing

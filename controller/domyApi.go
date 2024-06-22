@@ -1,13 +1,10 @@
 package domyApi
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 
 	config "github.com/domyid/domyapi/config"
@@ -72,6 +69,11 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, mahasiswa)
 }
 
+// PostMahasiswa handles the POST request to add mahasiswa data.
+func PostBimbinganMahasiswa(urlTarget string, cookies map[string]string, formData map[string]string, fileFieldName, filePath string) (*http.Response, error) {
+	return api.PostDataToURL(urlTarget, cookies, formData, fileFieldName, filePath)
+}
+
 func GetDosen(respw http.ResponseWriter, req *http.Request) {
 	urltarget := req.URL.Query().Get("url")
 	if urltarget == "" {
@@ -122,37 +124,4 @@ func NotFound(respw http.ResponseWriter, req *http.Request) {
 	var resp model.Response
 	resp.Response = "Not Found"
 	at.WriteJSON(respw, http.StatusNotFound, resp)
-}
-
-// Fungsi PostForm untuk melakukan permintaan POST dengan form data
-func PostForm(urltarget string, formData url.Values, headers map[string]string) (result []byte, err error) {
-	// Membuat permintaan POST dengan form data
-	req, err := http.NewRequest("POST", urltarget, bytes.NewBufferString(formData.Encode()))
-	if err != nil {
-		return nil, fmt.Errorf("gagal membuat permintaan: %w", err)
-	}
-
-	// Menambahkan header Content-Type untuk form data
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	// Menambahkan headers tambahan ke permintaan
-	for key, value := range headers {
-		req.Header.Add(key, value)
-	}
-
-	// Membuat HTTP client
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("gagal melakukan permintaan POST: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Membaca isi tanggapan
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("kesalahan membaca data dari tanggapan: %w", err)
-	}
-
-	return body, nil
 }

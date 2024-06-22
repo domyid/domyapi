@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
+	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-querystring/query"
@@ -302,19 +303,66 @@ func FetchDataFromURL(urltarget string, cookies map[string]string, headers map[s
 	defer resp.Body.Close()
 
 	// Baca isi body respon
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Log isi HTML
-	log.Printf("Fetched HTML: %s", string(body))
-
 	// Parse response body dengan goquery
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse response body: %w", err)
 	}
 
 	return doc, nil
+}
+
+// PostDataToURL sends a POST request with form data and file to the specified URL.
+func PostDataToURL(urltarget string, cookies map[string]string, formData map[string]string, fileFieldName, filePath string) (*http.Response, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	for key, val := range formData {
+		if err := writer.WriteField(key, val); err != nil {
+			return nil, fmt.Errorf("failed to write field %s: %w", key, err)
+		}
+	}
+
+	if filePath != "" {
+		file, err := os.Open(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open file: %w", err)
+		}
+		defer file.Close()
+
+		part, err := writer.CreateFormFile(fileFieldName, file.Name())
+		if err != nil {
+			return nil, fmt.Errorf("failed to create form file: %w", err)
+		}
+
+		_, err = io.Copy(part, file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy file content: %w", err)
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close writer: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", urltarget, &body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	for name, value := range cookies {
+		req.AddCookie(&http.Cookie{
+			Name:  name,
+			Value: value,
+		})
+	}
+
+	client := &http.Client{}
+	return client.Do(req)
 }
