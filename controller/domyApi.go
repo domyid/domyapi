@@ -53,13 +53,19 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, mahasiswa)
 }
 
-// PostMahasiswa handles the POST request to add mahasiswa data.
 func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/964"
 
-	cookies := make(map[string]string)
-	for _, cookie := range r.Cookies() {
-		cookies[cookie.Name] = cookie.Value
+	// Ambil login dari header
+	login := at.GetLoginFromHeader(r)
+	if login == "" {
+		http.Error(w, "No valid login found", http.StatusForbidden)
+		return
+	}
+
+	// Buat payload berisi informasi login
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": login,
 	}
 
 	formData := map[string]string{
@@ -76,16 +82,13 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	fileFieldName := "lampiran[]"
 	filePath := "" // Kosongkan path file
 
-	resp, err := api.PostData(urlTarget, cookies, formData, fileFieldName, filePath)
+	resp, err := api.PostData(urlTarget, payload, formData, fileFieldName, filePath)
 	if err != nil {
 		log.Printf("Error in PostBimbinganMahasiswa: %v", err)
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	defer resp.Body.Close()
-
-	// log.Printf("Response Status: %v", resp.Status)
-	// log.Printf("Response Headers: %v", resp.Header)
 
 	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
 		at.WriteJSON(w, resp.StatusCode, "unexpected status code")
