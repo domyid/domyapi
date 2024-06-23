@@ -17,20 +17,17 @@ import (
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
 
-	// Ambil cookie dari header
-	cookie := at.GetCookieFromHeader(req)
-	if cookie == "" {
-		http.Error(respw, "No valid cookie found", http.StatusForbidden)
+	// Ambil login dari header
+	login := at.GetLoginFromHeader(req)
+	if login == "" {
+		http.Error(respw, "No valid login found", http.StatusForbidden)
 		return
 	}
 
-	// Buat payload berisi informasi cookie
+	// Buat payload berisi informasi login
 	payload := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": cookie,
+		"SIAKAD_CLOUD_ACCESS": login,
 	}
-
-	log.Printf("Request URL: %s", urlTarget)
-	log.Printf("Received cookie: SIAKAD_CLOUD_ACCESS = %s", cookie)
 
 	doc, err := api.GetData(urlTarget, payload, nil)
 	if err != nil {

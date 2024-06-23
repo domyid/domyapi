@@ -15,15 +15,6 @@ func GetSecretFromHeader(r *http.Request) (secret string) {
 	return
 }
 
-func GetCookieFromHeader(r *http.Request) (secret string) {
-	if r.Header.Get("Cookies") != "" {
-		secret = r.Header.Get("Cookies")
-	} else if r.Header.Get("cookies") != "" {
-		secret = r.Header.Get("cookies")
-	}
-	return
-}
-
 func GetLoginFromHeader(r *http.Request) (secret string) {
 	if r.Header.Get("login") != "" {
 		secret = r.Header.Get("login")
