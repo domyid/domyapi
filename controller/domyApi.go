@@ -17,29 +17,34 @@ import (
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
 
-	cookies := make(map[string]string)
-	for _, cookie := range req.Cookies() {
-		cookies[cookie.Name] = cookie.Value
+	// Ambil cookie dari header
+	cookie := at.GetCookieFromHeader(req)
+	if cookie == "" {
+		http.Error(respw, "No valid cookie found", http.StatusForbidden)
+		return
+	}
+
+	// Buat payload berisi informasi cookie
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": cookie,
 	}
 
 	log.Printf("Request URL: %s", urlTarget)
-	for name, value := range cookies {
-		log.Printf("Received cookie: %s = %s", name, value)
-	}
+	log.Printf("Received cookie: SIAKAD_CLOUD_ACCESS = %s", cookie)
 
-	doc, err := api.GetData(urlTarget, cookies, nil)
+	doc, err := api.GetData(urlTarget, payload, nil)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Extract student information and trim spaces
+	// Ekstrak informasi mahasiswa dan hapus spasi berlebih
 	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
 	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
 	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
 	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
 
-	// Create a student instance
+	// Buat instance Mahasiswa
 	mahasiswa := model.Mahasiswa{
 		NIM:          nim,
 		Nama:         nama,
@@ -47,7 +52,7 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 		NomorHp:      noHp,
 	}
 
-	// Return the student instance as a JSON response
+	// Kembalikan instance Mahasiswa sebagai respon JSON
 	at.WriteJSON(respw, http.StatusOK, mahasiswa)
 }
 
