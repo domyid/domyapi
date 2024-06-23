@@ -71,27 +71,26 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 		"SIAKAD_CLOUD_ACCESS": login,
 	}
 
-	// Ambil file dari form
+	// Coba ambil file dari form
 	file, handler, err := r.FormFile("lampiran")
-	if err != nil {
-		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
+	var tempFilePath string
+	if err == nil {
+		defer file.Close()
 
-	// Simpan file ke direktori sementara
-	tempFilePath := filepath.Join(os.TempDir(), handler.Filename)
-	tempFile, err := os.Create(tempFilePath)
-	if err != nil {
-		http.Error(w, "Error creating temp file", http.StatusInternalServerError)
-		return
-	}
-	defer tempFile.Close()
+		// Simpan file ke direktori sementara
+		tempFilePath = filepath.Join(os.TempDir(), handler.Filename)
+		tempFile, err := os.Create(tempFilePath)
+		if err != nil {
+			http.Error(w, "Error creating temp file", http.StatusInternalServerError)
+			return
+		}
+		defer tempFile.Close()
 
-	_, err = io.Copy(tempFile, file)
-	if err != nil {
-		http.Error(w, "Error saving temp file", http.StatusInternalServerError)
-		return
+		_, err = io.Copy(tempFile, file)
+		if err != nil {
+			http.Error(w, "Error saving temp file", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Ambil data dari form dan masukkan ke struct Bimbingan
@@ -120,6 +119,12 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 
 	fileFieldName := "lampiran"
 	filePath := bimbingan.Lampiran
+
+	// Jika tidak ada file yang diunggah, kosongkan filePath
+	if tempFilePath == "" {
+		fileFieldName = ""
+		filePath = ""
+	}
 
 	resp, err := api.PostData(urlTarget, payload, formData, fileFieldName, filePath)
 	if err != nil {
