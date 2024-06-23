@@ -19,6 +19,18 @@ type Dosen struct {
 	NoHp string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
 }
 
+type Bimbingan struct {
+	Bimbinganke    string `bson:"bimbinganke,omitempty" json:"bimbinganke,omitempty"`
+	NIP            string `bson:"nip,omitempty" json:"nip,omitempty"`
+	TglBimbingan   string `bson:"tglbimbingan,omitempty" json:"tglbimbingan,omitempty"`
+	TopikBimbingan string `bson:"topikbimbingan,omitempty" json:"topikbimbingan,omitempty"`
+	Bahasan        string `bson:"bahasan,omitempty" json:"bahasan,omitempty"`
+	Link           string `bson:"link,omitempty" json:"link,omitempty"`
+	Lampiran       string `bson:"lampiran,omitempty" json:"lampiran,omitempty"`
+	Key            string `bson:"key,omitempty" json:"key,omitempty"`
+	Act            string `bson:"act,omitempty" json:"act,omitempty"`
+}
+
 type Profile struct {
 	Token       string `bson:"token"`
 	Phonenumber string `bson:"phonenumber"`

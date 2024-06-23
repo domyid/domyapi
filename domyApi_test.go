@@ -1,12 +1,19 @@
 package domyApi
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	controller "github.com/domyid/domyapi/controller"
 	model "github.com/domyid/domyapi/model"
@@ -109,85 +116,271 @@ func TestPostBimbinganMahasiswa(t *testing.T) {
 	}
 }
 
-// Single Request Testing
-// func TestGet(t *testing.T) {
-// 	// Define the cookies
-// 	cookies := map[string]string{
-// 		"SIAKAD_CLOUD_ACCESS": "ulbi-hflkskFmFT2rgoojscMRaFfKMBvSOW5m4qrDMC9Y",
-// 	}
+// GetRequest sends a GET request to the specified URL with the provided headers and cookies.
+func GetRequest(urlTarget string, headers map[string]string, cookies map[string]string) ([]byte, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating cookie jar: %w", err)
+	}
 
-// 	// Define additional headers
-// 	headers := map[string]string{
-// 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
-// 		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-// 	}
+	// Convert cookies map to []*http.Cookie
+	u, err := url.Parse(urlTarget)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing URL: %w", err)
+	}
 
-// 	// Make the GET request
-// 	body, err := domyApi.Get("https://siakad.ulbi.ac.id/siakad/data_mahasiswa", cookies, headers)
-// 	if err != nil {
-// 		t.Fatalf("Failed to get data: %s", err)
-// 	}
+	var cookieList []*http.Cookie
+	for name, value := range cookies {
+		cookieList = append(cookieList, &http.Cookie{Name: name, Value: value})
+	}
+	jar.SetCookies(u, cookieList)
 
-// 	// Define the file name and create the file
-// 	fileName := "response_body.txt"
-// 	file, err := os.Create(fileName)
-// 	if err != nil {
-// 		t.Fatalf("Failed to create file: %s", err)
-// 	}
-// 	defer file.Close()
+	client := &http.Client{
+		Jar: jar,
+	}
 
-// 	// Write the response body to the file
-// 	_, err = file.Write(body)
-// 	if err != nil {
-// 		t.Fatalf("Failed to write to file: %s", err)
-// 	}
+	req, err := http.NewRequest("GET", urlTarget, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
 
-// 	fmt.Printf("Response body saved to %s\n", fileName)
-// }
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 
-// // Multiple Request Testing
-// func loadTestGet(t *testing.T, url string, cookies map[string]string, headers map[string]string, numRequests int) {
-// 	var wg sync.WaitGroup
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error making request: %w", err)
+	}
+	defer resp.Body.Close()
 
-// 	start := time.Now()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
 
-// 	for i := 0; i < numRequests; i++ {
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
-// 			_, err := domyApi.Get(url, cookies, headers)
-// 			if err != nil {
-// 				t.Errorf("Failed to get data: %s", err)
-// 			}
-// 		}()
-// 	}
+	return body, nil
+}
 
-// 	wg.Wait()
+// PostRequest sends a POST request to the specified URL with the provided payload and headers.
+func PostRequest(url string, payload map[string]string, headers map[string]string) ([]byte, error) {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling JSON: %w", err)
+	}
 
-// 	duration := time.Since(start)
-// 	fmt.Printf("%d requests completed in %v\n", numRequests, duration)
-// }
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
 
-// func TestLoad(t *testing.T) {
-// 	// Define the cookies
-// 	cookies := map[string]string{
-// 		"PHPSESSID":      "aj5naqvedtg60t142ohrj2n5jr",
-// 		"PortalMHS[JWT]": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3MTY3OTUxNjgsImp0aSI6InFhTFwvZkoxbUVCS0R3Y1wvT01GVFBpOWE3d1wvNG0rUVJ5amxVbXkyTWJrNmM9IiwiaXNzIjoiYXBwIiwibmJmIjowLCJleHAiOjE3MTY3OTgxNjgsInNlY3VyaXR5Ijp7InVzZXJuYW1lIjoiMTIwNDA0NCIsInVzZXJpZCI6IjEyMDQwNDQiLCJwYXJlbnR1c2VyaWQiOm51bGwsInVzZXJsZXZlbGlkIjotMn19.GAe691m4hfLgfT0UmoHZeK5FOXx9282AGjPGbuEIO3iwG1kA9rUyvJpy2BKSXHRbjUAf6CAydlg4xRnwpK0YPw",
-// 	}
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 
-// 	// Define additional headers
-// 	headers := map[string]string{
-// 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
-// 		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-// 	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error making request: %w", err)
+	}
+	defer resp.Body.Close()
 
-// 	url := "https://siapmhs.ulbi.ac.id/Dashboard1"
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
 
-// 	// Load test with different numbers of requests
-// 	loadTestGet(t, url, cookies, headers, 1)
-// 	// loadTestGet(t, url, cookies, headers, 5000)
-// 	// loadTestGet(t, url, cookies, headers, 10000)
-// }
+	return body, nil
+}
+
+func TestSingleGet(t *testing.T) {
+	url := "https://www.louisvuittonindo.shop/#/login"
+
+	// Headers
+	headers := map[string]string{
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+	}
+
+	// Cookies
+	cookies := map[string]string{
+		"_lang": "in_ID",
+		"lang":  "in_ID",
+	}
+
+	// Make the GET request
+	body, err := GetRequest(url, headers, cookies)
+	if err != nil {
+		t.Fatalf("Failed to get data: %s", err)
+	}
+
+	// Define the file name and create the file
+	fileName := "response_body.txt"
+	file, err := os.Create(fileName)
+	if err != nil {
+		t.Fatalf("Failed to create file: %s", err)
+	}
+	defer file.Close()
+
+	// Write the response body to the file
+	_, err = file.Write(body)
+	if err != nil {
+		t.Fatalf("Failed to write to file: %s", err)
+	}
+
+	fmt.Printf("Response body saved to %s\n", fileName)
+}
+
+func loadTestGet(t *testing.T, url string, headers map[string]string, cookies map[string]string, numRequests int) {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var totalFailures int
+
+	start := time.Now()
+
+	for i := 0; i < numRequests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := GetRequest(url, headers, cookies)
+			if err != nil {
+				mu.Lock()
+				totalFailures++
+				mu.Unlock()
+				t.Errorf("Failed to get data: %s", err)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	duration := time.Since(start)
+	fmt.Printf("%d requests completed in %v with %d failures\n", numRequests, duration, totalFailures)
+}
+
+func TestLoadGet(t *testing.T) {
+	url := "https://www.louisvuittonindo.shop/#/login"
+
+	// Headers
+	headers := map[string]string{
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+	}
+
+	// Cookies
+	cookies := map[string]string{
+		"_lang": "in_ID",
+		"lang":  "in_ID",
+	}
+
+	loadTestGet(t, url, headers, cookies, 100000)
+}
+
+func loadTestPost(t *testing.T, url string, payload map[string]string, headers map[string]string, numRequests int) {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var totalFailures int
+
+	start := time.Now()
+
+	for i := 0; i < numRequests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := PostRequest(url, payload, headers)
+			if err != nil {
+				mu.Lock()
+				totalFailures++
+				mu.Unlock()
+				t.Errorf("Failed to post data: %s", err)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	duration := time.Since(start)
+	fmt.Printf("%d requests completed in %v with %d failures\n", numRequests, duration, totalFailures)
+}
+
+func TestLoadPost(t *testing.T) {
+	url := "https://www.louisvuittonindo.shop/user/api/login?lang=null"
+
+	// Payload data
+	payload := map[string]string{
+		"userName": "jangannipu",
+		"password": "12345",
+	}
+
+	// Headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"Accept":       "application/json, text/plain, */*",
+		"User-Agent":   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+	}
+
+	loadTestPost(t, url, payload, headers, 10)
+}
+
+// Fungsi untuk mengunduh skrip
+func downloadScript(url string, fileName string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("error making GET request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download script, status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %w", err)
+	}
+
+	err = os.WriteFile(fileName, body, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing to file: %w", err)
+	}
+
+	return nil
+}
+
+// Fungsi pengujian
+func TestDownloadScript(t *testing.T) {
+	// URL skrip JavaScript yang ingin Anda unduh
+	scriptURL := "https://www.louisvuittonindo.shop/static/js/app.20240610134932.js"
+
+	// Nama file tempat Anda ingin menyimpan skrip
+	fileName := "app.20240610134932.js"
+
+	// Hapus file jika sudah ada
+	os.Remove(fileName)
+
+	err := downloadScript(scriptURL, fileName)
+	if err != nil {
+		t.Fatalf("Failed to download script: %s", err)
+	}
+
+	// Periksa apakah file telah disimpan
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		t.Fatalf("File not found: %s", fileName)
+	}
+
+	// Baca konten file
+	content, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Fatalf("Failed to read file: %s", err)
+	}
+
+	// Periksa apakah konten file tidak kosong
+	if len(content) == 0 {
+		t.Fatalf("File content is empty")
+	}
+
+	fmt.Printf("Script saved to %s\n", fileName)
+}
 
 // func TestGetStruct(t *testing.T) {
 // 	dt := Sister{

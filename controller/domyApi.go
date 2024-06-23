@@ -2,8 +2,11 @@ package domyApi
 
 import (
 	"context"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	config "github.com/domyid/domyapi/config"
@@ -68,19 +71,55 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 		"SIAKAD_CLOUD_ACCESS": login,
 	}
 
-	formData := map[string]string{
-		"bimbinganke":    r.FormValue("bimbinganke"),
-		"nip":            r.FormValue("nip"),
-		"tglbimbingan":   r.FormValue("tglbimbingan"),
-		"topikbimbingan": r.FormValue("topikbimbingan"),
-		"bahasan":        r.FormValue("bahasan"),
-		"link[]":         r.FormValue("link[]"),
-		"key":            r.FormValue("key"),
-		"act":            r.FormValue("act"),
+	// Ambil file dari form
+	file, handler, err := r.FormFile("lampiran")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Simpan file ke direktori sementara
+	tempFilePath := filepath.Join(os.TempDir(), handler.Filename)
+	tempFile, err := os.Create(tempFilePath)
+	if err != nil {
+		http.Error(w, "Error creating temp file", http.StatusInternalServerError)
+		return
+	}
+	defer tempFile.Close()
+
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		http.Error(w, "Error saving temp file", http.StatusInternalServerError)
+		return
 	}
 
-	fileFieldName := "lampiran[]"
-	filePath := "" // Kosongkan path file
+	// Ambil data dari form dan masukkan ke struct Bimbingan
+	bimbingan := model.Bimbingan{
+		Bimbinganke:    r.FormValue("bimbinganke"),
+		NIP:            r.FormValue("nip"),
+		TglBimbingan:   r.FormValue("tglbimbingan"),
+		TopikBimbingan: r.FormValue("topikbimbingan"),
+		Bahasan:        r.FormValue("bahasan"),
+		Link:           r.FormValue("link[]"),
+		Key:            r.FormValue("key"),
+		Act:            r.FormValue("act"),
+		Lampiran:       tempFilePath,
+	}
+
+	formData := map[string]string{
+		"bimbinganke":    bimbingan.Bimbinganke,
+		"nip":            bimbingan.NIP,
+		"tglbimbingan":   bimbingan.TglBimbingan,
+		"topikbimbingan": bimbingan.TopikBimbingan,
+		"bahasan":        bimbingan.Bahasan,
+		"link[]":         bimbingan.Link,
+		"key":            bimbingan.Key,
+		"act":            bimbingan.Act,
+	}
+
+	fileFieldName := "lampiran"
+	filePath := bimbingan.Lampiran
 
 	resp, err := api.PostData(urlTarget, payload, formData, fileFieldName, filePath)
 	if err != nil {
@@ -95,7 +134,14 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	at.WriteJSON(w, resp.StatusCode, "success")
+	// Buat respons sukses berisi data bimbingan yang ditambahkan
+	responseData := map[string]interface{}{
+		"status":  "success",
+		"message": "Data berhasil ditambahkan",
+		"data":    bimbingan,
+	}
+
+	at.WriteJSON(w, http.StatusOK, responseData)
 }
 
 func GetDosen(respw http.ResponseWriter, req *http.Request) {

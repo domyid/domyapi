@@ -8,7 +8,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/http/cookiejar"
 	"os"
 
 	"github.com/PuerkitoBio/goquery"
@@ -32,30 +31,14 @@ func Get[T any](urltarget string) (statusCode int, result T, err error) {
 	return
 }
 
-func GetwithUrl(urltarget string, cookies map[string]string, headers map[string]string) (result []byte, err error) {
-	// Create a cookie jar
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
-	}
-
-	// Create an HTTP client with the cookie jar
-	client := &http.Client{
-		Jar: jar,
-	}
+func GetwithUrl(urltarget string, headers map[string]string) (result []byte, err error) {
+	// Create an HTTP client
+	client := &http.Client{}
 
 	// Create a new request
 	req, err := http.NewRequest("GET", urltarget, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Add cookies to the request
-	for name, value := range cookies {
-		req.AddCookie(&http.Cookie{
-			Name:  name,
-			Value: value,
-		})
 	}
 
 	// Add additional headers to the request
