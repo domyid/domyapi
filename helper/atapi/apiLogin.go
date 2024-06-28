@@ -48,8 +48,6 @@ func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.Res
 		return nil, errors.New("client ID not found")
 	}
 
-	fmt.Println("Token:", token)
-
 	// Form data for login request
 	formData := url.Values{
 		"email":        {reqLogin.Email},
@@ -90,6 +88,11 @@ func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.Res
 	if code == "" {
 		fmt.Println("Code/token not found in redirect URL")
 		return nil, errors.New("code/token not found in redirect URL")
+	}
+
+	if loginResp.Header.Get("Sx-Session") == "" {
+		fmt.Println("No session found")
+		return nil, errors.New("no session found")
 	}
 
 	result := &model.ResponseLogin{

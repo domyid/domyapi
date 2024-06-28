@@ -38,9 +38,11 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// save token to db
 	at.WriteJSON(w, http.StatusOK, res)
 
 }
+
 func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
@@ -70,6 +72,8 @@ func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 		Login:     true,
 		SxSession: token,
 	}
+
+	// save token to db with value token
 
 	at.WriteJSON(w, http.StatusOK, result)
 }
