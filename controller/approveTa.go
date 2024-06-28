@@ -20,17 +20,18 @@ func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 
 	login := at.GetLoginFromHeader(reg)
 	if login == "" {
-		http.Error(w, "No valid login found", http.StatusForbidden)
+		at.WriteJSON(w, http.StatusForbidden, "No valid login found")
 		return
 	}
 
 	token, err := helper.GetRefreshToken(client, login)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
-			http.Error(w, "token is invalid", http.StatusForbidden)
+			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
