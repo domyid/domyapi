@@ -1,6 +1,7 @@
 package domyApi
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/cookiejar"
@@ -10,7 +11,37 @@ import (
 	model "github.com/domyid/domyapi/model"
 )
 
-func GetListTugasAkhir(w http.ResponseWriter, reg *http.Request) {
+func LoginSiakad(w http.ResponseWriter, req *http.Request) {
+	jar, _ := cookiejar.New(nil)
+
+	// Create a new HTTP client with the cookie jar
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	var reqLogin model.RequestLoginSiakad
+
+	if err := json.NewDecoder(req.Body).Decode(&reqLogin); err != nil {
+		at.WriteJSON(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	resp, err := helper.LoginAct(*client, reqLogin)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	res, err := helper.LoginRequest(client, *resp)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	at.WriteJSON(w, http.StatusOK, res)
+
+}
+func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
 	// Create a new HTTP client with the cookie jar

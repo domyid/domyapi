@@ -51,3 +51,15 @@ type ResponseAct struct {
 	Login     bool   `json:"login"`
 	SxSession string `json:"token"`
 }
+
+type RequestLoginSiakad struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+type ResponseLogin struct {
+	Code    string `json:"code"`
+	Session string `json:"session"`
+	Role    string `json:"role"`
+}
