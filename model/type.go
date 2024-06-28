@@ -46,3 +46,8 @@ type Response struct {
 	Status   string `json:"status,omitempty"`
 	Location string `json:"location,omitempty"`
 }
+
+type ResponseAct struct {
+	Login     bool   `json:"login"`
+	SxSession string `json:"token"`
+}
