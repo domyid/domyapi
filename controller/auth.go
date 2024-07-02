@@ -3,6 +3,7 @@ package domyApi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
@@ -78,9 +79,12 @@ func RefreshToken(w http.ResponseWriter, req *http.Request) {
 	// Mengambil token dari database
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
 	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token not found for user")
 		return
 	}
+
+	fmt.Println("Old Token:", tokenData.Token)
 
 	// Memperbarui token menggunakan GetRefreshToken
 	newToken, err := helper.GetRefreshToken(client, tokenData.Token)
@@ -102,12 +106,15 @@ func RefreshToken(w http.ResponseWriter, req *http.Request) {
 	}
 	_, err = atdb.UpdateDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
 	if err != nil {
+		fmt.Println("Error Updating Token:", err)
 		var respn model.Response
 		respn.Status = "Gagal Update Database"
 		respn.Response = err.Error()
 		at.WriteJSON(w, http.StatusNotModified, respn)
 		return
 	}
+
+	fmt.Println("New Token:", newToken)
 
 	result := &model.ResponseAct{
 		Login:     true,
