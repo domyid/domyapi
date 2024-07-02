@@ -49,7 +49,6 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 func SaveTokenString(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
-	// Create a new HTTP client with the cookie jar
 	client := &http.Client{
 		Jar: jar,
 	}
@@ -71,9 +70,8 @@ func SaveTokenString(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Simpan token ke database
 	tokenData := model.TokenData{
-		UserID:    login, // Asumsikan login adalah userID
+		UserID:    login,
 		Token:     token,
 		UpdatedAt: time.Now(),
 	}
