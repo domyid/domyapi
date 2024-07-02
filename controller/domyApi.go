@@ -1,7 +1,6 @@
 package domyApi
 
 import (
-	"context"
 	"io"
 	"log"
 	"net/http"
@@ -9,12 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
-	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
@@ -182,21 +178,6 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 		NIDN: nidn,
 		Nama: nama,
 		NoHp: noHp,
-	}
-
-	// Cek apakah data dosen sudah ada di database
-	filter := bson.M{"nip": dosen.NIP}
-	var existingDosen model.Dosen
-	if err := config.Mongoconn.Collection("dosen").FindOne(context.TODO(), filter).Decode(&existingDosen); err == nil {
-		// Data sudah ada, tidak perlu menambah data baru
-		at.WriteJSON(respw, http.StatusOK, existingDosen)
-		return
-	}
-
-	// Simpan ke MongoDB jika data belum ada
-	if _, err := atdb.InsertOneDoc(config.Mongoconn, "dosen", dosen); err != nil {
-		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
-		return
 	}
 
 	// Konversi ke JSON dan kirimkan sebagai respon
