@@ -150,14 +150,21 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetDosen(respw http.ResponseWriter, req *http.Request) {
-	urltarget := req.URL.Query().Get("url")
-	if urltarget == "" {
-		http.Error(respw, "url query parameter is required", http.StatusBadRequest)
-		return
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
 
+	// Ambil login dari header
+	login := at.GetLoginFromHeader(req)
+	if login == "" {
+		http.Error(respw, "No valid login found", http.StatusForbidden)
+		return
 	}
 
-	doc, err := api.GetData(urltarget, nil, nil)
+	// Buat payload berisi informasi login
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": login,
+	}
+
+	doc, err := api.GetData(urlTarget, payload, nil)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
