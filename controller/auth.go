@@ -3,7 +3,6 @@ package domyApi
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
@@ -13,7 +12,6 @@ import (
 	helper "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func LoginSiakad(w http.ResponseWriter, req *http.Request) {
@@ -62,7 +60,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(w, http.StatusOK, res)
 }
 
-func SaveTokenString(w http.ResponseWriter, req *http.Request) {
+func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
 	// Create a new HTTP client with the cookie jar
@@ -70,25 +68,13 @@ func SaveTokenString(w http.ResponseWriter, req *http.Request) {
 		Jar: jar,
 	}
 
-	// Mengambil login dari header
-	login := req.Header.Get("login")
+	login := at.GetLoginFromHeader(reg)
 	if login == "" {
 		at.WriteJSON(w, http.StatusForbidden, "No valid login found")
 		return
 	}
 
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
-	if err != nil {
-		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Token not found for user")
-		return
-	}
-
-	fmt.Println("Old Token from DB:", tokenData.Token)
-
-	// Menggunakan GetRefreshToken untuk memperbarui token
-	newToken, err := helper.GetRefreshToken(client, tokenData.Token)
+	token, err := helper.GetRefreshToken(client, login)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
 			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
@@ -99,11 +85,12 @@ func SaveTokenString(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Menyiapkan hasil dan mengembalikannya sebagai respons
 	result := &model.ResponseAct{
 		Login:     true,
-		SxSession: newToken,
+		SxSession: token,
 	}
+
+	// save token to db with value token
 
 	at.WriteJSON(w, http.StatusOK, result)
 }
