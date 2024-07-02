@@ -12,6 +12,8 @@ import (
 	helper "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func LoginSiakad(w http.ResponseWriter, req *http.Request) {
@@ -41,38 +43,10 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// save token to db
-	at.WriteJSON(w, http.StatusOK, res)
-
-}
-
-func SaveTokenString(w http.ResponseWriter, req *http.Request) {
-	jar, _ := cookiejar.New(nil)
-
-	client := &http.Client{
-		Jar: jar,
-	}
-
-	login := at.GetLoginFromHeader(req)
-	if login == "" {
-		at.WriteJSON(w, http.StatusForbidden, "No valid login found")
-		return
-	}
-
-	token, err := helper.GetRefreshToken(client, login)
-	if err != nil {
-		if errors.Is(err, errors.New("no token found")) {
-			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
+	// Simpan session token ke database
 	tokenData := model.TokenData{
-		UserID:    login,
-		Token:     token,
+		UserID:    reqLogin.Email, // Asumsikan email digunakan sebagai userID
+		Token:     res.Session,
 		UpdatedAt: time.Now(),
 	}
 
@@ -85,9 +59,59 @@ func SaveTokenString(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	at.WriteJSON(w, http.StatusOK, res)
+}
+
+func RefreshToken(w http.ResponseWriter, req *http.Request) {
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	// Mengambil login dari header
+	login := req.Header.Get("login")
+	if login == "" {
+		at.WriteJSON(w, http.StatusForbidden, "No valid login found")
+		return
+	}
+
+	// Mengambil token dari database
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
+	if err != nil {
+		at.WriteJSON(w, http.StatusNotFound, "Token not found for user")
+		return
+	}
+
+	// Memperbarui token menggunakan GetRefreshToken
+	newToken, err := helper.GetRefreshToken(client, tokenData.Token)
+	if err != nil {
+		if errors.Is(err, errors.New("no token found")) {
+			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
+			return
+		}
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Memperbarui token di database
+	update := bson.M{
+		"$set": bson.M{
+			"token":      newToken,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err = atdb.UpdateDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Gagal Update Database"
+		respn.Response = err.Error()
+		at.WriteJSON(w, http.StatusNotModified, respn)
+		return
+	}
+
 	result := &model.ResponseAct{
 		Login:     true,
-		SxSession: token,
+		SxSession: newToken,
 	}
 
 	at.WriteJSON(w, http.StatusOK, result)
