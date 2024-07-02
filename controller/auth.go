@@ -65,6 +65,8 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 
 func RefreshToken(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
+
+	// Create a new HTTP client with the cookie jar
 	client := &http.Client{
 		Jar: jar,
 	}
