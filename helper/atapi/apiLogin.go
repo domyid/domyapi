@@ -168,7 +168,7 @@ func LoginRequest(client *http.Client, userReq model.ResponseLogin) (*model.Resp
 }
 
 func GetRefreshToken(client *http.Client, token string) (string, error) {
-	homeURL := "https://siakad.ulbi.ac.id/siakad/data_bimbingan/detail/112"
+	homeURL := "https://siakad.ulbi.ac.id/siakad/home"
 
 	req, err := http.NewRequest("GET", homeURL, nil)
 	if err != nil {

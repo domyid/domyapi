@@ -5,9 +5,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/cookiejar"
+	"time"
 
+	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
 	helper "github.com/domyid/domyapi/helper/atapi"
+	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
 )
 
@@ -43,7 +46,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 
 }
 
-func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
+func SaveTokenString(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
 	// Create a new HTTP client with the cookie jar
@@ -51,7 +54,7 @@ func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 		Jar: jar,
 	}
 
-	login := at.GetLoginFromHeader(reg)
+	login := at.GetLoginFromHeader(req)
 	if login == "" {
 		at.WriteJSON(w, http.StatusForbidden, "No valid login found")
 		return
@@ -68,12 +71,26 @@ func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 		return
 	}
 
+	// Simpan token ke database
+	tokenData := model.TokenData{
+		UserID:    login, // Asumsikan login adalah userID
+		Token:     token,
+		UpdatedAt: time.Now(),
+	}
+
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "tokens", tokenData)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Gagal Insert Database"
+		respn.Response = err.Error()
+		at.WriteJSON(w, http.StatusNotModified, respn)
+		return
+	}
+
 	result := &model.ResponseAct{
 		Login:     true,
 		SxSession: token,
 	}
-
-	// save token to db with value token
 
 	at.WriteJSON(w, http.StatusOK, result)
 }
