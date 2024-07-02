@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
@@ -12,6 +13,7 @@ import (
 	helper "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -62,6 +64,13 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 }
 
 func RefreshToken(w http.ResponseWriter, req *http.Request) {
+	jar, _ := cookiejar.New(nil)
+
+	// Create a new HTTP client with the cookie jar
+	client := &http.Client{
+		Jar: jar,
+	}
+
 	// Mengambil login dari header
 	login := req.Header.Get("login")
 	if login == "" {
@@ -77,10 +86,39 @@ func RefreshToken(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Mengembalikan token dari database
+	// Menggunakan GetRefreshToken untuk memperbarui token
+	newToken, err := helper.GetRefreshToken(client, tokenData.Token)
+	if err != nil {
+		if errors.Is(err, errors.New("no token found")) {
+			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Memperbarui token di database
+	update := bson.M{
+		"$set": bson.M{
+			"token":      newToken,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err = atdb.UpdateDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
+	if err != nil {
+		fmt.Println("Error Updating Token:", err)
+		var respn model.Response
+		respn.Status = "Gagal Update Database"
+		respn.Response = err.Error()
+		at.WriteJSON(w, http.StatusNotModified, respn)
+		return
+	}
+
+	// Mengembalikan token yang diperbarui
 	result := &model.ResponseAct{
 		Login:     true,
-		SxSession: tokenData.Token,
+		SxSession: newToken,
 	}
 
 	at.WriteJSON(w, http.StatusOK, result)
