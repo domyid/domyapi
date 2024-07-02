@@ -13,7 +13,6 @@ import (
 	helper "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -97,25 +96,6 @@ func SaveTokenString(w http.ResponseWriter, req *http.Request) {
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	fmt.Println("New Token:", newToken)
-
-	// Memperbarui token di database
-	update := bson.M{
-		"$set": bson.M{
-			"token":      newToken,
-			"updated_at": time.Now(),
-		},
-	}
-	_, err = atdb.UpdateOneDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
-	if err != nil {
-		fmt.Println("Error Updating Token:", err)
-		var respn model.Response
-		respn.Status = "Gagal Update Database"
-		respn.Response = err.Error()
-		at.WriteJSON(w, http.StatusNotModified, respn)
 		return
 	}
 
