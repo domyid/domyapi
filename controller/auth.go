@@ -65,8 +65,6 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 
 func RefreshToken(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
-
-	// Create a new HTTP client with the cookie jar
 	client := &http.Client{
 		Jar: jar,
 	}
@@ -78,6 +76,8 @@ func RefreshToken(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	fmt.Println("Login header:", login)
+
 	// Mengambil token dari database berdasarkan user_id
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
 	if err != nil {
@@ -86,17 +86,23 @@ func RefreshToken(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	fmt.Println("Old Token from DB:", tokenData.Token)
+
 	// Menggunakan GetRefreshToken untuk memperbarui token
 	newToken, err := helper.GetRefreshToken(client, tokenData.Token)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
+			fmt.Println("Error: No token found in response")
 			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
 			return
 		}
+		fmt.Println("Error getting refresh token:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	fmt.Println("New Token:", newToken)
 
 	// Memperbarui token di database
 	update := bson.M{
@@ -105,7 +111,7 @@ func RefreshToken(w http.ResponseWriter, req *http.Request) {
 			"updated_at": time.Now(),
 		},
 	}
-	_, err = atdb.UpdateDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
 	if err != nil {
 		fmt.Println("Error Updating Token:", err)
 		var respn model.Response
@@ -115,7 +121,6 @@ func RefreshToken(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Mengembalikan token yang diperbarui
 	result := &model.ResponseAct{
 		Login:     true,
 		SxSession: newToken,

@@ -114,7 +114,7 @@ func InsertOneDoc(db *mongo.Database, collection string, doc interface{}) (inser
 	return insertResult.InsertedID, nil
 }
 
-func UpdateDoc(db *mongo.Database, collection string, filter bson.M, updatefield bson.M) (updateresult *mongo.UpdateResult, err error) {
+func UpdateOneDoc(db *mongo.Database, collection string, filter bson.M, updatefield bson.M) (updateresult *mongo.UpdateResult, err error) {
 	updateresult, err = db.Collection(collection).UpdateOne(context.TODO(), filter, updatefield)
 	if err != nil {
 		return

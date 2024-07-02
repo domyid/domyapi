@@ -172,7 +172,7 @@ func GetRefreshToken(client *http.Client, token string) (string, error) {
 
 	req, err := http.NewRequest("GET", homeURL, nil)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
@@ -192,8 +192,11 @@ func GetRefreshToken(client *http.Client, token string) (string, error) {
 	tokenStr := resp.Header.Get("Sx-Session")
 
 	if tokenStr == "" {
+		fmt.Println("No token found in response headers")
 		return "", fmt.Errorf("no token found")
 	}
+
+	fmt.Println("New Token from response:", tokenStr)
 
 	return tokenStr, nil
 }
