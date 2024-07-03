@@ -172,7 +172,7 @@ func GetRefreshToken(client *http.Client, token string) (string, error) {
 
 	req, err := http.NewRequest("GET", homeURL, nil)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
@@ -189,11 +189,20 @@ func GetRefreshToken(client *http.Client, token string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	tokenStr := resp.Header.Get("Sx-Session")
-
-	if tokenStr == "" {
-		return "", fmt.Errorf("no token found")
+	// Ambil cookies dari response header
+	cookies := resp.Cookies()
+	var newToken string
+	for _, cookie := range cookies {
+		if cookie.Name == "SIAKAD_CLOUD_ACCESS" {
+			newToken = cookie.Value
+			break
+		}
 	}
 
-	return tokenStr, nil
+	// Jika tidak ada token baru di cookies, gunakan token yang lama
+	if newToken == "" {
+		newToken = token
+	}
+
+	return newToken, nil
 }
