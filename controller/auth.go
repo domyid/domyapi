@@ -70,18 +70,17 @@ func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 
 	login := at.GetLoginFromHeader(reg)
 	if login == "" {
-		at.WriteJSON(w, http.StatusForbidden, "No valid login found")
+		http.Error(w, "No valid login found", http.StatusForbidden)
 		return
 	}
 
 	token, err := helper.GetRefreshToken(client, login)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
-			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
+			http.Error(w, "token is invalid", http.StatusForbidden)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -89,8 +88,6 @@ func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 		Login:     true,
 		SxSession: token,
 	}
-
-	// save token to db with value token
 
 	at.WriteJSON(w, http.StatusOK, result)
 }
