@@ -13,6 +13,8 @@ import (
 	helper "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func LoginSiakad(w http.ResponseWriter, req *http.Request) {
@@ -60,7 +62,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Ambil dan simpan data mahasiswa atau dosen
-	if reqLogin.Role == "mahasiswa" {
+	if reqLogin.Role == "mhs" {
 		err = saveMahasiswaData(client, res.Session, reqLogin.Email)
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
@@ -135,7 +137,7 @@ func saveDosenData(_ *http.Client, token, email string) error {
 	return err
 }
 
-func RefreshTokenDosen(w http.ResponseWriter, reg *http.Request) {
+func RefreshTokenDosen(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
 	// Create a new HTTP client with the cookie jar
@@ -143,13 +145,22 @@ func RefreshTokenDosen(w http.ResponseWriter, reg *http.Request) {
 		Jar: jar,
 	}
 
-	login := at.GetLoginFromHeader(reg)
+	// Ambil login dari header
+	login := req.Header.Get("login")
 	if login == "" {
 		http.Error(w, "No valid login found", http.StatusForbidden)
 		return
 	}
 
-	token, err := helper.GetRefreshTokenDosen(client, login)
+	// Ambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
+	if err != nil {
+		http.Error(w, "Token not found for user", http.StatusNotFound)
+		return
+	}
+
+	// Gunakan GetRefreshTokenDosen untuk memperbarui token
+	newToken, err := helper.GetRefreshTokenDosen(client, tokenData.Token)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
 			http.Error(w, "token is invalid", http.StatusForbidden)
@@ -159,15 +170,28 @@ func RefreshTokenDosen(w http.ResponseWriter, reg *http.Request) {
 		return
 	}
 
+	// Memperbarui token di database
+	update := bson.M{
+		"$set": bson.M{
+			"token":      newToken,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
+	if err != nil {
+		http.Error(w, "Failed to update database", http.StatusInternalServerError)
+		return
+	}
+
 	result := &model.ResponseAct{
 		Login:     true,
-		SxSession: token,
+		SxSession: newToken,
 	}
 
 	at.WriteJSON(w, http.StatusOK, result)
 }
 
-func RefreshTokenMahasiswa(w http.ResponseWriter, reg *http.Request) {
+func RefreshTokenMahasiswa(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
 	// Create a new HTTP client with the cookie jar
@@ -175,13 +199,22 @@ func RefreshTokenMahasiswa(w http.ResponseWriter, reg *http.Request) {
 		Jar: jar,
 	}
 
-	login := at.GetLoginFromHeader(reg)
+	// Ambil login dari header
+	login := req.Header.Get("login")
 	if login == "" {
 		http.Error(w, "No valid login found", http.StatusForbidden)
 		return
 	}
 
-	token, err := helper.GetRefreshTokenMahasiswa(client, login)
+	// Ambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
+	if err != nil {
+		http.Error(w, "Token not found for user", http.StatusNotFound)
+		return
+	}
+
+	// Gunakan GetRefreshTokenMahasiswa untuk memperbarui token
+	newToken, err := helper.GetRefreshTokenMahasiswa(client, tokenData.Token)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
 			http.Error(w, "token is invalid", http.StatusForbidden)
@@ -191,9 +224,22 @@ func RefreshTokenMahasiswa(w http.ResponseWriter, reg *http.Request) {
 		return
 	}
 
+	// Memperbarui token di database
+	update := bson.M{
+		"$set": bson.M{
+			"token":      newToken,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
+	if err != nil {
+		http.Error(w, "Failed to update database", http.StatusInternalServerError)
+		return
+	}
+
 	result := &model.ResponseAct{
 		Login:     true,
-		SxSession: token,
+		SxSession: newToken,
 	}
 
 	at.WriteJSON(w, http.StatusOK, result)
