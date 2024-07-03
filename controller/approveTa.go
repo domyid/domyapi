@@ -24,7 +24,7 @@ func GetListTugasAkhir(w http.ResponseWriter, reg *http.Request) {
 		return
 	}
 
-	token, err := helper.GetRefreshToken(client, login)
+	token, err := helper.GetRefreshTokenDosen(client, login)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
 			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
