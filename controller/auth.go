@@ -44,25 +44,56 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Simpan session token ke database
-	tokenData := model.TokenData{
-		UserID:    reqLogin.Email,
-		Token:     res.Session,
-		Role:      reqLogin.Role,
-		UpdatedAt: time.Now(),
-	}
-
-	_, err = atdb.InsertOneDoc(config.Mongoconn, "tokens", tokenData)
+	// Cek apakah user_id sudah ada di database
+	existingTokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": reqLogin.Email})
 	if err != nil {
+		// Jika terjadi kesalahan selain tidak menemukan dokumen, kembalikan error
 		var respn model.Response
-		respn.Status = "Gagal Insert Database"
+		respn.Status = "Gagal memeriksa database"
 		respn.Response = err.Error()
-		at.WriteJSON(w, http.StatusNotModified, respn)
+		at.WriteJSON(w, http.StatusInternalServerError, respn)
 		return
 	}
 
+	if existingTokenData.UserID == "" {
+		// Jika user_id tidak ditemukan, insert data baru
+		tokenData := model.TokenData{
+			UserID:    reqLogin.Email,
+			Token:     res.Session,
+			Role:      reqLogin.Role,
+			Password:  reqLogin.Password,
+			UpdatedAt: time.Now(),
+		}
+		_, insertErr := atdb.InsertOneDoc(config.Mongoconn, "tokens", tokenData)
+		if insertErr != nil {
+			var respn model.Response
+			respn.Status = "Gagal Insert Database"
+			respn.Response = insertErr.Error()
+			at.WriteJSON(w, http.StatusNotModified, respn)
+			return
+		}
+		at.WriteJSON(w, http.StatusOK, tokenData)
+	} else {
+		// Jika user_id ditemukan, perbarui token yang ada
+		update := bson.M{
+			"$set": bson.M{
+				"token":      res.Session,
+				"updated_at": time.Now(),
+			},
+		}
+		_, updateErr := atdb.UpdateOneDoc(config.Mongoconn, "tokens", primitive.M{"user_id": reqLogin.Email}, update)
+		if updateErr != nil {
+			var respn model.Response
+			respn.Status = "Gagal Update Database"
+			respn.Response = updateErr.Error()
+			at.WriteJSON(w, http.StatusInternalServerError, respn)
+			return
+		}
+		at.WriteJSON(w, http.StatusOK, existingTokenData)
+	}
+
 	// Ambil dan simpan data mahasiswa atau dosen
-	if reqLogin.Role == "mhs" {
+	if reqLogin.Role == "mahasiswa" {
 		err = saveMahasiswaData(client, res.Session, reqLogin.Email)
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
@@ -75,8 +106,6 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
-
-	at.WriteJSON(w, http.StatusOK, res)
 }
 
 func saveMahasiswaData(_ *http.Client, token, email string) error {
