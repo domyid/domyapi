@@ -171,109 +171,60 @@ func saveDosenData(_ *http.Client, token, email string) error {
 	return err
 }
 
-func RefreshTokenDosen(w http.ResponseWriter, req *http.Request) {
+func RefreshTokens(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
-
-	// Create a new HTTP client with the cookie jar
 	client := &http.Client{
 		Jar: jar,
 	}
 
-	// Ambil login dari header
-	login := req.Header.Get("login")
-	if login == "" {
-		http.Error(w, "No valid login found", http.StatusForbidden)
+	// Ambil semua entri dari koleksi `tokens`
+	tokens, err := atdb.GetAllDoc[[]model.TokenData](config.Mongoconn, "tokens", bson.M{})
+	if err != nil {
+		http.Error(w, "Failed to fetch tokens from database", http.StatusInternalServerError)
 		return
 	}
 
-	// Ambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
-	if err != nil {
-		http.Error(w, "Token not found for user", http.StatusNotFound)
-		return
-	}
+	for _, tokenData := range tokens {
+		var newToken string
+		if tokenData.Role == "dosen" {
+			newToken, err = helper.GetRefreshTokenDosen(client, tokenData.Token)
+		} else if tokenData.Role == "mhs" {
+			newToken, err = helper.GetRefreshTokenMahasiswa(client, tokenData.Token)
+		} else {
+			continue // Abaikan role yang tidak dikenali
+		}
 
-	// Gunakan GetRefreshTokenDosen untuk memperbarui token
-	newToken, err := helper.GetRefreshTokenDosen(client, tokenData.Token)
-	if err != nil {
-		if errors.Is(err, errors.New("no token found")) {
-			http.Error(w, "token is invalid", http.StatusForbidden)
+		if err != nil {
+			if errors.Is(err, errors.New("no token found")) {
+				// Hapus token dari database
+				delErr := atdb.DeleteOneDoc(config.Mongoconn, "tokens", bson.M{"user_id": tokenData.UserID})
+				if delErr != nil {
+					http.Error(w, "Failed to delete invalid token", http.StatusInternalServerError)
+					return
+				}
+				continue
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 
-	// Memperbarui token di database
-	update := bson.M{
-		"$set": bson.M{
-			"token":      newToken,
-			"updated_at": time.Now(),
-		},
-	}
-	_, err = atdb.UpdateOneDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
-	if err != nil {
-		http.Error(w, "Failed to update database", http.StatusInternalServerError)
-		return
+		// Memperbarui token di database
+		update := bson.M{
+			"$set": bson.M{
+				"token":      newToken,
+				"updated_at": time.Now(),
+			},
+		}
+		_, err = atdb.UpdateOneDoc(config.Mongoconn, "tokens", bson.M{"user_id": tokenData.UserID}, update)
+		if err != nil {
+			http.Error(w, "Failed to update database", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	result := &model.ResponseAct{
 		Login:     true,
-		SxSession: newToken,
-	}
-
-	at.WriteJSON(w, http.StatusOK, result)
-}
-
-func RefreshTokenMahasiswa(w http.ResponseWriter, req *http.Request) {
-	jar, _ := cookiejar.New(nil)
-
-	// Create a new HTTP client with the cookie jar
-	client := &http.Client{
-		Jar: jar,
-	}
-
-	// Ambil login dari header
-	login := req.Header.Get("login")
-	if login == "" {
-		http.Error(w, "No valid login found", http.StatusForbidden)
-		return
-	}
-
-	// Ambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": login})
-	if err != nil {
-		http.Error(w, "Token not found for user", http.StatusNotFound)
-		return
-	}
-
-	// Gunakan GetRefreshTokenMahasiswa untuk memperbarui token
-	newToken, err := helper.GetRefreshTokenMahasiswa(client, tokenData.Token)
-	if err != nil {
-		if errors.Is(err, errors.New("no token found")) {
-			http.Error(w, "token is invalid", http.StatusForbidden)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Memperbarui token di database
-	update := bson.M{
-		"$set": bson.M{
-			"token":      newToken,
-			"updated_at": time.Now(),
-		},
-	}
-	_, err = atdb.UpdateOneDoc(config.Mongoconn, "tokens", primitive.M{"user_id": login}, update)
-	if err != nil {
-		http.Error(w, "Failed to update database", http.StatusInternalServerError)
-		return
-	}
-
-	result := &model.ResponseAct{
-		Login:     true,
-		SxSession: newToken,
+		SxSession: "All tokens refreshed successfully",
 	}
 
 	at.WriteJSON(w, http.StatusOK, result)
