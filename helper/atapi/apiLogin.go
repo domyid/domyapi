@@ -167,12 +167,12 @@ func LoginRequest(client *http.Client, userReq model.ResponseLogin) (*model.Resp
 	return result, nil
 }
 
-func GetRefreshToken(client *http.Client, token string) (string, error) {
-	homeURL := "https://siakad.ulbi.ac.id/siakad/home"
+func GetRefreshTokenDosen(client *http.Client, token string) (string, error) {
+	homeURL := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
 
 	req, err := http.NewRequest("GET", homeURL, nil)
 	if err != nil {
-		return "", err
+		return "", nil
 	}
 
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
@@ -189,20 +189,42 @@ func GetRefreshToken(client *http.Client, token string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	// Ambil cookies dari response header
-	cookies := resp.Cookies()
-	var newToken string
-	for _, cookie := range cookies {
-		if cookie.Name == "SIAKAD_CLOUD_ACCESS" {
-			newToken = cookie.Value
-			break
-		}
+	tokenStr := resp.Header.Get("Sx-Session")
+
+	if tokenStr == "" {
+		return "", fmt.Errorf("no token found")
 	}
 
-	// Jika tidak ada token baru di cookies, gunakan token yang lama
-	if newToken == "" {
-		newToken = token
+	return tokenStr, nil
+}
+
+func GetRefreshTokenMahasiswa(client *http.Client, token string) (string, error) {
+	homeURL := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
+
+	req, err := http.NewRequest("GET", homeURL, nil)
+	if err != nil {
+		return "", nil
 	}
 
-	return newToken, nil
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Cache-Control", "max-age=0")
+	req.Header.Set("Referer", "https://siakad.ulbi.ac.id/gate/menu")
+	req.Header.Set("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", token))
+
+	// Send the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	tokenStr := resp.Header.Get("Sx-Session")
+
+	if tokenStr == "" {
+		return "", fmt.Errorf("no token found")
+	}
+
+	return tokenStr, nil
 }

@@ -60,7 +60,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(w, http.StatusOK, res)
 }
 
-func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
+func RefreshTokenDosen(w http.ResponseWriter, reg *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
 	// Create a new HTTP client with the cookie jar
@@ -74,7 +74,39 @@ func SaveTokenString(w http.ResponseWriter, reg *http.Request) {
 		return
 	}
 
-	token, err := helper.GetRefreshToken(client, login)
+	token, err := helper.GetRefreshTokenDosen(client, login)
+	if err != nil {
+		if errors.Is(err, errors.New("no token found")) {
+			http.Error(w, "token is invalid", http.StatusForbidden)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	result := &model.ResponseAct{
+		Login:     true,
+		SxSession: token,
+	}
+
+	at.WriteJSON(w, http.StatusOK, result)
+}
+
+func RefreshTokenMahasiswa(w http.ResponseWriter, reg *http.Request) {
+	jar, _ := cookiejar.New(nil)
+
+	// Create a new HTTP client with the cookie jar
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	login := at.GetLoginFromHeader(reg)
+	if login == "" {
+		http.Error(w, "No valid login found", http.StatusForbidden)
+		return
+	}
+
+	token, err := helper.GetRefreshTokenMahasiswa(client, login)
 	if err != nil {
 		if errors.Is(err, errors.New("no token found")) {
 			http.Error(w, "token is invalid", http.StatusForbidden)
