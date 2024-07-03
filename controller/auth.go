@@ -85,7 +85,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(w, http.StatusOK, existingTokenData)
 
 	// Ambil dan simpan data mahasiswa atau dosen
-	if reqLogin.Role == "mahasiswa" {
+	if reqLogin.Role == "mhs" {
 		err = saveMahasiswaData(client, res.Session, reqLogin.Email)
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
