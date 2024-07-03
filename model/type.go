@@ -2,8 +2,6 @@ package domyApi
 
 import (
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Token struct {
@@ -73,10 +71,9 @@ type ResponseLogin struct {
 }
 
 type TokenData struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	UserID    string             `bson:"user_id" json:"user_id"`
-	Password  string             `bson:"password" json:"password"`
-	Token     string             `bson:"token" json:"token"`
-	Role      string             `bson:"role" json:"role"`
-	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
+	UserID    string    `bson:"user_id" json:"user_id"`
+	Password  string    `bson:"password" json:"password"`
+	Token     string    `bson:"token" json:"token"`
+	Role      string    `bson:"role" json:"role"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
