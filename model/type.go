@@ -12,6 +12,7 @@ type Token struct {
 }
 
 type Mahasiswa struct {
+	Email        string `bson:"email,omitempty" json:"email,omitempty"`
 	NIM          string `bson:"nim,omitempty" json:"nim,omitempty"`
 	Nama         string `bson:"nama,omitempty" json:"nama,omitempty"`
 	ProgramStudi string `bson:"program_studi,omitempty" json:"program_studi,omitempty"`
@@ -19,10 +20,11 @@ type Mahasiswa struct {
 }
 
 type Dosen struct {
-	NIP  string `bson:"nip,omitempty" json:"nip,omitempty"`
-	NIDN string `bson:"nidn,omitempty" json:"nidn,omitempty"`
-	Nama string `bson:"nama,omitempty" json:"nama,omitempty"`
-	NoHp string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
+	Email string `bson:"email,omitempty" json:"email,omitempty"`
+	NIP   string `bson:"nip,omitempty" json:"nip,omitempty"`
+	NIDN  string `bson:"nidn,omitempty" json:"nidn,omitempty"`
+	Nama  string `bson:"nama,omitempty" json:"nama,omitempty"`
+	NoHp  string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
 }
 
 type Bimbingan struct {
@@ -74,5 +76,6 @@ type TokenData struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	UserID    string             `bson:"user_id" json:"user_id"`
 	Token     string             `bson:"token" json:"token"`
+	Role      string             `bson:"role" json:"role"`
 	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
 }

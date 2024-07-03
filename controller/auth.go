@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/cookiejar"
+	"strings"
 	"time"
 
 	config "github.com/domyid/domyapi/config"
@@ -43,8 +44,9 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 
 	// Simpan session token ke database
 	tokenData := model.TokenData{
-		UserID:    reqLogin.Email, // Asumsikan email digunakan sebagai userID
+		UserID:    reqLogin.Email,
 		Token:     res.Session,
+		Role:      reqLogin.Role,
 		UpdatedAt: time.Now(),
 	}
 
@@ -57,7 +59,80 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Ambil dan simpan data mahasiswa atau dosen
+	if reqLogin.Role == "mahasiswa" {
+		err = saveMahasiswaData(client, res.Session, reqLogin.Email)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	} else if reqLogin.Role == "dosen" {
+		err = saveDosenData(client, res.Session, reqLogin.Email)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
 	at.WriteJSON(w, http.StatusOK, res)
+}
+
+func saveMahasiswaData(_ *http.Client, token, email string) error {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
+
+	cookies := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": token,
+	}
+
+	doc, err := helper.GetData(urlTarget, cookies, nil)
+	if err != nil {
+		return err
+	}
+
+	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
+	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
+	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
+	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
+
+	mahasiswa := model.Mahasiswa{
+		Email:        email,
+		NIM:          nim,
+		Nama:         nama,
+		ProgramStudi: programStudi,
+		NomorHp:      noHp,
+	}
+
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "mahasiswa", mahasiswa)
+	return err
+}
+
+func saveDosenData(_ *http.Client, token, email string) error {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
+
+	cookies := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": token,
+	}
+
+	doc, err := helper.GetData(urlTarget, cookies, nil)
+	if err != nil {
+		return err
+	}
+
+	nip := strings.TrimSpace(doc.Find("#block-nip .input-nip").Text())
+	nidn := strings.TrimSpace(doc.Find("#block-nidn .input-nidn").Text())
+	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
+	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
+
+	dosen := model.Dosen{
+		Email: email,
+		NIP:   nip,
+		NIDN:  nidn,
+		Nama:  nama,
+		NoHp:  noHp,
+	}
+
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "dosen", dosen)
+	return err
 }
 
 func RefreshTokenDosen(w http.ResponseWriter, reg *http.Request) {
