@@ -178,14 +178,11 @@ func Logout(client *http.Client, tokenData model.TokenData) error {
 		return fmt.Errorf("failed to create logout request: %w", err)
 	}
 
-	// Tambahkan header dan cookie jika diperlukan
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
 	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Cache-Control", "max-age=0")
 	req.Header.Set("Upgrade-Insecure-Requests", "1")
-
-	// Add the necessary cookies
 	req.AddCookie(&http.Cookie{Name: "SIAKAD_CLOUD_ACCESS", Value: tokenData.Token})
 
 	resp, err := client.Do(req)
@@ -194,11 +191,10 @@ func Logout(client *http.Client, tokenData model.TokenData) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusFound {
+	if resp.StatusCode != http.StatusFound && resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("logout request failed with status code: %d", resp.StatusCode)
 	}
 
-	// Optional: handle redirection if needed
 	for resp.StatusCode == http.StatusFound {
 		redirectURL := resp.Header.Get("Location")
 		if redirectURL == "" {
