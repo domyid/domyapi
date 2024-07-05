@@ -167,6 +167,107 @@ func LoginRequest(client *http.Client, userReq model.ResponseLogin) (*model.Resp
 	return result, nil
 }
 
+func Logout(client *http.Client, token string, isGate bool) error {
+	var logoutURL string
+	if isGate {
+		logoutURL = "https://siakad.ulbi.ac.id/gate/logout"
+	} else {
+		logoutURL = "https://siakad.ulbi.ac.id/siakad/logout"
+	}
+
+	req, err := http.NewRequest("GET", logoutURL, nil)
+	if err != nil {
+		return fmt.Errorf("error creating logout request: %w", err)
+	}
+
+	req.Header.Set("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", token))
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Cache-Control", "max-age=0")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending logout request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Follow redirects
+	for resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusSeeOther {
+		redirectURL := resp.Header.Get("Location")
+		if redirectURL == "" {
+			return fmt.Errorf("no redirect URL found")
+		}
+
+		req, err = http.NewRequest("GET", redirectURL, nil)
+		if err != nil {
+			return fmt.Errorf("error creating redirect request: %w", err)
+		}
+
+		req.Header.Set("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", token))
+		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+		req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+		req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+		req.Header.Set("Cache-Control", "max-age=0")
+		req.Header.Set("Upgrade-Insecure-Requests", "1")
+
+		resp, err = client.Do(req)
+		if err != nil {
+			return fmt.Errorf("error sending redirect request: %w", err)
+		}
+		defer resp.Body.Close()
+	}
+
+	// Handle SSO Sevima logout
+	ssoLogoutURL := "https://sso.sevima.com/sessions/logout?client_id=84f03a0e-a33a-461e-ba01-4eeb500bcf31&redirect_uri=https://siakad.ulbi.ac.id/gate/authsso&response_type=code"
+	req, err = http.NewRequest("GET", ssoLogoutURL, nil)
+	if err != nil {
+		return fmt.Errorf("error creating SSO logout request: %w", err)
+	}
+
+	req.Header.Set("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", token))
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Cache-Control", "max-age=0")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+
+	resp, err = client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending SSO logout request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Follow redirects for SSO logout
+	for resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusSeeOther {
+		redirectURL := resp.Header.Get("Location")
+		if redirectURL == "" {
+			return fmt.Errorf("no redirect URL found")
+		}
+
+		req, err = http.NewRequest("GET", redirectURL, nil)
+		if err != nil {
+			return fmt.Errorf("error creating SSO redirect request: %w", err)
+		}
+
+		req.Header.Set("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", token))
+		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+		req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+		req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+		req.Header.Set("Cache-Control", "max-age=0")
+		req.Header.Set("Upgrade-Insecure-Requests", "1")
+
+		resp, err = client.Do(req)
+		if err != nil {
+			return fmt.Errorf("error sending SSO redirect request: %w", err)
+		}
+		defer resp.Body.Close()
+	}
+
+	return nil
+}
+
 func GetRefreshTokenDosen(client *http.Client, token string) (string, error) {
 	homeURL := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
 

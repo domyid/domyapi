@@ -196,7 +196,17 @@ func RefreshTokens(w http.ResponseWriter, req *http.Request) {
 
 		if err != nil {
 			if errors.Is(err, errors.New("no token found")) {
-				// Hapus token dari database
+				// Lakukan proses logout dan hapus token dari database
+				logoutErr := helper.Logout(client, tokenData.Token, true) // Logout dari gate
+				if logoutErr != nil {
+					http.Error(w, "Failed to logout from gate", http.StatusInternalServerError)
+					return
+				}
+				logoutErr = helper.Logout(client, tokenData.Token, false) // Logout dari siakad
+				if logoutErr != nil {
+					http.Error(w, "Failed to logout from siakad", http.StatusInternalServerError)
+					return
+				}
 				delErr := atdb.DeleteOneDoc(config.Mongoconn, "tokens", bson.M{"user_id": tokenData.UserID})
 				if delErr != nil {
 					http.Error(w, "Failed to delete invalid token", http.StatusInternalServerError)
