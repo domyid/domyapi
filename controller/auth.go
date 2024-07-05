@@ -2,7 +2,7 @@ package domyApi
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
@@ -171,13 +171,13 @@ func saveDosenData(_ *http.Client, token, email string) error {
 	return err
 }
 
+// Refresh tokens function
 func RefreshTokens(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
 		Jar: jar,
 	}
 
-	// Ambil semua entri dari koleksi `tokens`
 	tokens, err := atdb.GetAllDoc[[]model.TokenData](config.Mongoconn, "tokens", bson.M{})
 	if err != nil {
 		http.Error(w, "Failed to fetch tokens from database", http.StatusInternalServerError)
@@ -191,20 +191,14 @@ func RefreshTokens(w http.ResponseWriter, req *http.Request) {
 		} else if tokenData.Role == "mhs" {
 			newToken, err = helper.GetRefreshTokenMahasiswa(client, tokenData.Token)
 		} else {
-			continue // Abaikan role yang tidak dikenali
+			continue
 		}
 
 		if err != nil {
-			if errors.Is(err, errors.New("no token found")) {
-				// Lakukan proses logout dan hapus token dari database
-				logoutErr := helper.Logout(client, tokenData.Token, true) // Logout dari gate
-				if logoutErr != nil {
-					http.Error(w, "Failed to logout from gate", http.StatusInternalServerError)
-					return
-				}
-				logoutErr = helper.Logout(client, tokenData.Token, false) // Logout dari siakad
-				if logoutErr != nil {
-					http.Error(w, "Failed to logout from siakad", http.StatusInternalServerError)
+			if strings.Contains(err.Error(), "no token found") {
+				err := helper.Logout(client, tokenData)
+				if err != nil {
+					http.Error(w, fmt.Sprintf("Logout failed: %v", err), http.StatusInternalServerError)
 					return
 				}
 				delErr := atdb.DeleteOneDoc(config.Mongoconn, "tokens", bson.M{"user_id": tokenData.UserID})
@@ -218,7 +212,6 @@ func RefreshTokens(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// Memperbarui token di database
 		update := bson.M{
 			"$set": bson.M{
 				"token":      newToken,
