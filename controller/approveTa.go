@@ -52,16 +52,18 @@ func GetListTugasAkhir(respw http.ResponseWriter, req *http.Request) {
 			return goquery.NodeName(selection) == "#text"
 		}).Text())
 		judul := strings.TrimSpace(s.Find("td").Eq(1).Text())
-		pembimbing := strings.TrimSpace(s.Find("td").Eq(2).Text())
+		pembimbing1 := strings.TrimSpace(s.Find("td").Eq(2).Find("ol li").Eq(0).Text())
+		pembimbing2 := strings.TrimSpace(s.Find("td").Eq(2).Find("ol li").Eq(1).Text())
 		tglMulai := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		status := strings.TrimSpace(s.Find("td").Eq(4).Text())
+		status := strings.TrimSpace(s.Find("td").Eq(4).Find("h3").Text())
 		dataID, _ := s.Find("td").Eq(5).Find(".btn-group .action-link").Attr("data-id")
 
 		ta := model.TugasAkhir{
 			Nama:         nama,
 			NIM:          nim,
 			Judul:        judul,
-			Pembimbing:   pembimbing,
+			Pembimbing1:  pembimbing1,
+			Pembimbing2:  pembimbing2,
 			TanggalMulai: tglMulai,
 			Status:       status,
 			DataID:       dataID,

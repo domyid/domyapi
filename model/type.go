@@ -82,7 +82,8 @@ type TugasAkhir struct {
 	Nama         string `bson:"nama,omitempty" json:"nama"`
 	NIM          string `bson:"nim,omitempty" json:"nim"`
 	Judul        string `bson:"judul,omitempty" json:"judul"`
-	Pembimbing   string `bson:"pembimbing,omitempty" json:"pembimbing"`
+	Pembimbing1  string `bson:"pembimbing1,omitempty" json:"pembimbing1"`
+	Pembimbing2  string `bson:"pembimbing2,omitempty" json:"pembimbing2"`
 	TanggalMulai string `bson:"tanggal_mulai,omitempty" json:"tanggal_mulai"`
 	Status       string `bson:"status,omitempty" json:"status"`
 	DataID       string `bson:"data_id,omitempty" json:"data_id"`
