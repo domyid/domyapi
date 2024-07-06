@@ -1,6 +1,7 @@
 package domyApi
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -294,6 +295,114 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 
 	// Konversi ke JSON dan kirimkan sebagai respon
 	at.WriteJSON(respw, http.StatusOK, dosen)
+}
+
+func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request) {
+	// Mengambil user_id dari header
+	userID := req.Header.Get("user_id")
+	if userID == "" {
+		http.Error(respw, "No valid user ID found", http.StatusForbidden)
+		return
+	}
+
+	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
+	listTA, err := api.FetchListTugasAkhirAllMahasiswa(userID)
+	if err != nil || len(listTA) == 0 {
+		at.WriteJSON(respw, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
+		return
+	}
+
+	// Kembalikan daftar TA sebagai respon JSON
+	at.WriteJSON(respw, http.StatusOK, listTA)
+}
+
+func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
+	// Mengambil user_id dari header
+	userID := r.Header.Get("user_id")
+	if userID == "" {
+		http.Error(w, "No valid user ID found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil NIM dari body request
+	var requestData struct {
+		NIM string `json:"nim"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestData.NIM == "" {
+		http.Error(w, "No valid NIM found", http.StatusBadRequest)
+		return
+	}
+
+	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
+	listTA, err := api.FetchListTugasAkhirAllMahasiswa(userID)
+	if err != nil || len(listTA) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
+		return
+	}
+
+	// Cari data_id berdasarkan NIM
+	var dataID string
+	for _, ta := range listTA {
+		if ta.NIM == requestData.NIM {
+			dataID = ta.DataID
+			break
+		}
+	}
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the given NIM", http.StatusNotFound)
+		return
+	}
+
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
+
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	// Buat payload berisi informasi token
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
+	}
+
+	// Mengirim permintaan untuk mengambil data list bimbingan
+	doc, err := api.GetData(urlTarget, payload, nil)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Ekstrak informasi dari respon
+	var listBimbingan []model.ListBimbingan
+	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
+		no := strings.TrimSpace(s.Find("td").Eq(0).Text())
+		tanggal := strings.TrimSpace(s.Find("td").Eq(1).Text())
+		dosenPembimbing := strings.TrimSpace(s.Find("td").Eq(2).Text())
+		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
+		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
+		dataID, _ := s.Find("td").Eq(5).Find("button").Attr("data-id")
+
+		listbimbingan := model.ListBimbingan{
+			No:              no,
+			Tanggal:         tanggal,
+			DosenPembimbing: dosenPembimbing,
+			Topik:           topik,
+			Disetujui:       disetujui,
+			DataID:          dataID,
+		}
+		listBimbingan = append(listBimbingan, listbimbingan)
+	})
+
+	// Kembalikan daftar bimbingan sebagai respon JSON
+	at.WriteJSON(w, http.StatusOK, listBimbingan)
 }
 
 func NotFound(respw http.ResponseWriter, req *http.Request) {
