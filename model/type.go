@@ -9,34 +9,6 @@ type Token struct {
 	Values string
 }
 
-type Mahasiswa struct {
-	Email        string `bson:"email,omitempty" json:"email,omitempty"`
-	NIM          string `bson:"nim,omitempty" json:"nim,omitempty"`
-	Nama         string `bson:"nama,omitempty" json:"nama,omitempty"`
-	ProgramStudi string `bson:"program_studi,omitempty" json:"program_studi,omitempty"`
-	NomorHp      string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
-}
-
-type Dosen struct {
-	Email string `bson:"email,omitempty" json:"email,omitempty"`
-	NIP   string `bson:"nip,omitempty" json:"nip,omitempty"`
-	NIDN  string `bson:"nidn,omitempty" json:"nidn,omitempty"`
-	Nama  string `bson:"nama,omitempty" json:"nama,omitempty"`
-	NoHp  string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
-}
-
-type Bimbingan struct {
-	Bimbinganke    string `bson:"bimbinganke,omitempty" json:"bimbinganke,omitempty"`
-	NIP            string `bson:"nip,omitempty" json:"nip,omitempty"`
-	TglBimbingan   string `bson:"tglbimbingan,omitempty" json:"tglbimbingan,omitempty"`
-	TopikBimbingan string `bson:"topikbimbingan,omitempty" json:"topikbimbingan,omitempty"`
-	Bahasan        string `bson:"bahasan,omitempty" json:"bahasan,omitempty"`
-	Link           string `bson:"link,omitempty" json:"link,omitempty"`
-	Lampiran       string `bson:"lampiran,omitempty" json:"lampiran,omitempty"`
-	Key            string `bson:"key,omitempty" json:"key,omitempty"`
-	Act            string `bson:"act,omitempty" json:"act,omitempty"`
-}
-
 type Profile struct {
 	Token       string `bson:"token"`
 	Phonenumber string `bson:"phonenumber"`
@@ -76,4 +48,42 @@ type TokenData struct {
 	Token     string    `bson:"token" json:"token"`
 	Role      string    `bson:"role" json:"role"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+}
+
+type Mahasiswa struct {
+	Email        string `bson:"email,omitempty" json:"email,omitempty"`
+	NIM          string `bson:"nim,omitempty" json:"nim,omitempty"`
+	Nama         string `bson:"nama,omitempty" json:"nama,omitempty"`
+	ProgramStudi string `bson:"program_studi,omitempty" json:"program_studi,omitempty"`
+	NomorHp      string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
+}
+
+type Dosen struct {
+	Email string `bson:"email,omitempty" json:"email,omitempty"`
+	NIP   string `bson:"nip,omitempty" json:"nip,omitempty"`
+	NIDN  string `bson:"nidn,omitempty" json:"nidn,omitempty"`
+	Nama  string `bson:"nama,omitempty" json:"nama,omitempty"`
+	NoHp  string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
+}
+
+type Bimbingan struct {
+	Bimbinganke    string `bson:"bimbinganke,omitempty" json:"bimbinganke,omitempty"`
+	NIP            string `bson:"nip,omitempty" json:"nip,omitempty"`
+	TglBimbingan   string `bson:"tglbimbingan,omitempty" json:"tglbimbingan,omitempty"`
+	TopikBimbingan string `bson:"topikbimbingan,omitempty" json:"topikbimbingan,omitempty"`
+	Bahasan        string `bson:"bahasan,omitempty" json:"bahasan,omitempty"`
+	Link           string `bson:"link,omitempty" json:"link,omitempty"`
+	Lampiran       string `bson:"lampiran,omitempty" json:"lampiran,omitempty"`
+	Key            string `bson:"key,omitempty" json:"key,omitempty"`
+	Act            string `bson:"act,omitempty" json:"act,omitempty"`
+}
+
+type TugasAkhir struct {
+	Nama         string `bson:"nama,omitempty" json:"nama"`
+	NIM          string `bson:"nim,omitempty" json:"nim"`
+	Judul        string `bson:"judul,omitempty" json:"judul"`
+	Pembimbing   string `bson:"pembimbing,omitempty" json:"pembimbing"`
+	TanggalMulai string `bson:"tanggal_mulai,omitempty" json:"tanggal_mulai"`
+	Status       string `bson:"status,omitempty" json:"status"`
+	DataID       string `bson:"data_id,omitempty" json:"data_id"`
 }

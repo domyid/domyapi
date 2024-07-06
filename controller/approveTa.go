@@ -1,44 +1,74 @@
 package domyApi
 
 import (
-	"errors"
+	"fmt"
 	"net/http"
-	"net/http/cookiejar"
+	"strings"
 
+	"github.com/PuerkitoBio/goquery"
+	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
-	helper "github.com/domyid/domyapi/helper/atapi"
+	api "github.com/domyid/domyapi/helper/atapi"
+	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func GetListTugasAkhir(w http.ResponseWriter, reg *http.Request) {
-	jar, _ := cookiejar.New(nil)
+func GetListTugasAkhir(respw http.ResponseWriter, req *http.Request) {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/list_ta"
 
-	// Create a new HTTP client with the cookie jar
-	client := &http.Client{
-		Jar: jar,
-	}
-
-	login := at.GetLoginFromHeader(reg)
-	if login == "" {
-		at.WriteJSON(w, http.StatusForbidden, "No valid login found")
+	// Mengambil user_id dari header
+	userID := req.Header.Get("user_id")
+	if userID == "" {
+		http.Error(respw, "No valid user ID found", http.StatusForbidden)
 		return
 	}
 
-	token, err := helper.GetRefreshTokenDosen(client, login)
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
 	if err != nil {
-		if errors.Is(err, errors.New("no token found")) {
-			at.WriteJSON(w, http.StatusForbidden, "token is invalid")
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(respw, http.StatusNotFound, "Token not found for user")
 		return
 	}
 
-	result := &model.ResponseAct{
-		Login:     true,
-		SxSession: token,
+	// Buat payload berisi informasi token
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
-	at.WriteJSON(w, http.StatusOK, result)
+	// Mengirim permintaan untuk mengambil data list TA
+	doc, err := api.GetData(urlTarget, payload, nil)
+	if err != nil {
+		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Ekstrak informasi dari respon
+	var listTA []model.TugasAkhir
+	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
+		nama := strings.TrimSpace(s.Find("td").Eq(0).Find("strong").Text())
+		nim := strings.TrimSpace(s.Find("td").Eq(0).Contents().FilterFunction(func(_ int, selection *goquery.Selection) bool {
+			return goquery.NodeName(selection) == "#text"
+		}).Text())
+		judul := strings.TrimSpace(s.Find("td").Eq(1).Text())
+		pembimbing := strings.TrimSpace(s.Find("td").Eq(2).Text())
+		tglMulai := strings.TrimSpace(s.Find("td").Eq(3).Text())
+		status := strings.TrimSpace(s.Find("td").Eq(4).Text())
+		dataID, _ := s.Find("td").Eq(5).Find(".btn-group .action-link").Attr("data-id")
+
+		ta := model.TugasAkhir{
+			Nama:         nama,
+			NIM:          nim,
+			Judul:        judul,
+			Pembimbing:   pembimbing,
+			TanggalMulai: tglMulai,
+			Status:       status,
+			DataID:       dataID,
+		}
+		listTA = append(listTA, ta)
+	})
+
+	// Kembalikan daftar TA sebagai respon JSON
+	at.WriteJSON(respw, http.StatusOK, listTA)
 }
