@@ -32,7 +32,7 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(respw, http.StatusNotFound, "Token not found for user")
+		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
@@ -93,7 +93,7 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Token not found for user")
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
@@ -208,7 +208,7 @@ func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Token not found for user")
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
@@ -263,7 +263,7 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(respw, http.StatusNotFound, "Token not found for user")
+		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 

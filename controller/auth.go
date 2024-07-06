@@ -226,6 +226,7 @@ func RefreshTokens(w http.ResponseWriter, req *http.Request) {
 	}
 
 	result := &model.ResponseAct{
+		Login:     true,
 		SxSession: "All tokens refreshed successfully",
 	}
 
