@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
@@ -177,6 +178,75 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	}
 
 	at.WriteJSON(w, http.StatusOK, responseData)
+}
+
+func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
+	// Mengambil user_id dari header
+	userID := r.Header.Get("user_id")
+	if userID == "" {
+		http.Error(w, "No valid user ID found", http.StatusForbidden)
+		return
+	}
+
+	// Memanggil fungsi helper untuk mendapatkan list tugas akhir
+	listTA, err := api.FetchListTugasAkhirMahasiswa(userID)
+	if err != nil || len(listTA) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
+		return
+	}
+
+	// Ambil data_id dari list tugas akhir pertama (atau sesuai logika yang Anda inginkan)
+	dataID := listTA[0].DataID
+	if dataID == "" {
+		http.Error(w, "No valid data ID found", http.StatusForbidden)
+		return
+	}
+
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
+
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token not found for user")
+		return
+	}
+
+	// Buat payload berisi informasi token
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
+	}
+
+	// Mengirim permintaan untuk mengambil data list bimbingan
+	doc, err := api.GetData(urlTarget, payload, nil)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Ekstrak informasi dari respon
+	var listBimbingan []model.ListBimbingan
+	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
+		no := strings.TrimSpace(s.Find("td").Eq(0).Text())
+		tanggal := strings.TrimSpace(s.Find("td").Eq(1).Text())
+		dosenPembimbing := strings.TrimSpace(s.Find("td").Eq(2).Text())
+		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
+		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
+		dataID, _ := s.Find("td").Eq(5).Find("button").Attr("data-id")
+
+		listbimbingan := model.ListBimbingan{
+			No:              no,
+			Tanggal:         tanggal,
+			DosenPembimbing: dosenPembimbing,
+			Topik:           topik,
+			Disetujui:       disetujui,
+			DataID:          dataID,
+		}
+		listBimbingan = append(listBimbingan, listbimbingan)
+	})
+
+	// Kembalikan daftar bimbingan sebagai respon JSON
+	at.WriteJSON(w, http.StatusOK, listBimbingan)
 }
 
 func GetDosen(respw http.ResponseWriter, req *http.Request) {
