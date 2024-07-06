@@ -17,6 +17,78 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func saveMahasiswaData(_ *http.Client, token, email string) error {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
+
+	cookies := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": token,
+	}
+
+	doc, err := helper.GetData(urlTarget, cookies, nil)
+	if err != nil {
+		return err
+	}
+
+	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
+	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
+	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
+	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
+
+	mahasiswa := model.Mahasiswa{
+		Email:        email,
+		NIM:          nim,
+		Nama:         nama,
+		ProgramStudi: programStudi,
+		NomorHp:      noHp,
+	}
+
+	// Cek apakah data mahasiswa sudah ada berdasarkan email
+	existingMahasiswa, err := atdb.GetOneDoc[model.Mahasiswa](config.Mongoconn, "mahasiswa", primitive.M{"email": email})
+	if err == nil && existingMahasiswa.Email != "" {
+		// Data mahasiswa sudah ada, tidak perlu disimpan lagi
+		return nil
+	}
+
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "mahasiswa", mahasiswa)
+	return err
+}
+
+func saveDosenData(_ *http.Client, token, email string) error {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
+
+	cookies := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": token,
+	}
+
+	doc, err := helper.GetData(urlTarget, cookies, nil)
+	if err != nil {
+		return err
+	}
+
+	nip := strings.TrimSpace(doc.Find("#block-nip .input-nip").Text())
+	nidn := strings.TrimSpace(doc.Find("#block-nidn .input-nidn").Text())
+	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
+	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
+
+	dosen := model.Dosen{
+		Email: email,
+		NIP:   nip,
+		NIDN:  nidn,
+		Nama:  nama,
+		NoHp:  noHp,
+	}
+
+	// Cek apakah data dosen sudah ada berdasarkan email
+	existingDosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": email})
+	if err == nil && existingDosen.Email != "" {
+		// Data dosen sudah ada, tidak perlu disimpan lagi
+		return nil
+	}
+
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "dosen", dosen)
+	return err
+}
+
 func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 	jar, _ := cookiejar.New(nil)
 
@@ -97,78 +169,6 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
-}
-
-func saveMahasiswaData(_ *http.Client, token, email string) error {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
-
-	cookies := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": token,
-	}
-
-	doc, err := helper.GetData(urlTarget, cookies, nil)
-	if err != nil {
-		return err
-	}
-
-	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
-	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
-	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
-	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
-
-	mahasiswa := model.Mahasiswa{
-		Email:        email,
-		NIM:          nim,
-		Nama:         nama,
-		ProgramStudi: programStudi,
-		NomorHp:      noHp,
-	}
-
-	// Cek apakah data mahasiswa sudah ada berdasarkan email
-	existingMahasiswa, err := atdb.GetOneDoc[model.Mahasiswa](config.Mongoconn, "mahasiswa", primitive.M{"email": email})
-	if err == nil && existingMahasiswa.Email != "" {
-		// Data mahasiswa sudah ada, tidak perlu disimpan lagi
-		return nil
-	}
-
-	_, err = atdb.InsertOneDoc(config.Mongoconn, "mahasiswa", mahasiswa)
-	return err
-}
-
-func saveDosenData(_ *http.Client, token, email string) error {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
-
-	cookies := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": token,
-	}
-
-	doc, err := helper.GetData(urlTarget, cookies, nil)
-	if err != nil {
-		return err
-	}
-
-	nip := strings.TrimSpace(doc.Find("#block-nip .input-nip").Text())
-	nidn := strings.TrimSpace(doc.Find("#block-nidn .input-nidn").Text())
-	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
-	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
-
-	dosen := model.Dosen{
-		Email: email,
-		NIP:   nip,
-		NIDN:  nidn,
-		Nama:  nama,
-		NoHp:  noHp,
-	}
-
-	// Cek apakah data dosen sudah ada berdasarkan email
-	existingDosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": email})
-	if err == nil && existingDosen.Email != "" {
-		// Data dosen sudah ada, tidak perlu disimpan lagi
-		return nil
-	}
-
-	_, err = atdb.InsertOneDoc(config.Mongoconn, "dosen", dosen)
-	return err
 }
 
 // Refresh tokens function

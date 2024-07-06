@@ -21,11 +21,11 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.RefreshTokens(w, r)
 	case method == "GET" && path == "/data/mahasiswa":
 		controller.GetMahasiswa(w, r)
-	case method == "GET" && path == "/data/dosen":
-		controller.GetDosen(w, r)
 	case method == "POST" && path == "/data/bimbingan/mahasiswa":
 		controller.PostBimbinganMahasiswa(w, r)
-	case method == "GET" && path == "/data/list/bimbingan":
+	case method == "GET" && path == "/data/dosen":
+		controller.GetDosen(w, r)
+	case method == "GET" && path == "/data/bimbingan/dosen":
 		controller.GetListTugasAkhirAllMahasiswa(w, r)
 	default:
 		controller.NotFound(w, r)

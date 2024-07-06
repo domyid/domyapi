@@ -78,7 +78,7 @@ type Bimbingan struct {
 	Act            string `bson:"act,omitempty" json:"act,omitempty"`
 }
 
-type TugasAkhir struct {
+type TugasAkhirAllMahasiswa struct {
 	Nama         string `bson:"nama,omitempty" json:"nama"`
 	NIM          string `bson:"nim,omitempty" json:"nim"`
 	Judul        string `bson:"judul,omitempty" json:"judul"`
@@ -87,4 +87,13 @@ type TugasAkhir struct {
 	TanggalMulai string `bson:"tanggal_mulai,omitempty" json:"tanggal_mulai"`
 	Status       string `bson:"status,omitempty" json:"status"`
 	DataID       string `bson:"data_id,omitempty" json:"data_id"`
+}
+
+type TugasAkhirMahasiswa struct {
+	DataID       string `bson:"data_id,omitempty" json:"data_id"`
+	Judul        string `bson:"judul,omitempty" json:"judul"`
+	Pembimbing1  string `bson:"pembimbing1,omitempty" json:"pembimbing1"`
+	Pembimbing2  string `bson:"pembimbing2,omitempty" json:"pembimbing2"`
+	TanggalMulai string `bson:"tanggal_mulai,omitempty" json:"tanggal_mulai"`
+	Status       string `bson:"status,omitempty" json:"status"`
 }
