@@ -14,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func GetListTugasAkhir(respw http.ResponseWriter, req *http.Request) {
+func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/list_ta"
 
 	// Mengambil user_id dari header

@@ -1,6 +1,7 @@
 package domyApi
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -8,24 +9,36 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
+	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
+	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
 
-	// Ambil login dari header
-	login := at.GetLoginFromHeader(req)
-	if login == "" {
-		http.Error(respw, "No valid login found", http.StatusForbidden)
+	// Mengambil user_id dari header
+	userID := req.Header.Get("user_id")
+	if userID == "" {
+		http.Error(respw, "No valid user ID found", http.StatusForbidden)
 		return
 	}
 
-	// Buat payload berisi informasi login
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(respw, http.StatusNotFound, "Token not found for user")
+		return
+	}
+
+	// Buat payload berisi informasi token
 	payload := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": login,
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
 	doc, err := api.GetData(urlTarget, payload, nil)
@@ -52,19 +65,89 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, mahasiswa)
 }
 
-func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/964"
+func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/list_ta"
 
-	// Ambil login dari header
-	login := at.GetLoginFromHeader(r)
-	if login == "" {
-		http.Error(w, "No valid login found", http.StatusForbidden)
+	// Mengambil user_id dari header
+	userID := req.Header.Get("user_id")
+	if userID == "" {
+		http.Error(respw, "No valid user ID found", http.StatusForbidden)
 		return
 	}
 
-	// Buat payload berisi informasi login
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(respw, http.StatusNotFound, "Token not found for user")
+		return
+	}
+
+	// Buat payload berisi informasi token
 	payload := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": login,
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
+	}
+
+	// Mengirim permintaan untuk mengambil data list TA
+	doc, err := api.GetData(urlTarget, payload, nil)
+	if err != nil {
+		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Ekstrak informasi dari respon
+	var listTA []model.TugasAkhir
+	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
+		judul := strings.TrimSpace(s.Find("td").Eq(1).Text())
+		pembimbing1 := strings.TrimSpace(s.Find("td").Eq(2).Find("ol li").Eq(0).Text())
+		pembimbing2 := strings.TrimSpace(s.Find("td").Eq(2).Find("ol li").Eq(1).Text())
+		tglMulai := strings.TrimSpace(s.Find("td").Eq(3).Text())
+		status := strings.TrimSpace(s.Find("td").Eq(4).Find("h3").Text())
+		dataID, _ := s.Find("td").Eq(5).Find(".btn-group .action-link").Attr("data-id")
+
+		ta := model.TugasAkhir{
+			Judul:        judul,
+			Pembimbing1:  pembimbing1,
+			Pembimbing2:  pembimbing2,
+			TanggalMulai: tglMulai,
+			Status:       status,
+			DataID:       dataID,
+		}
+		listTA = append(listTA, ta)
+	})
+
+	// Kembalikan daftar TA sebagai respon JSON
+	at.WriteJSON(respw, http.StatusOK, listTA)
+}
+
+func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
+	// Mengambil data-id dari form
+	dataID := r.FormValue("data_id")
+	if dataID == "" {
+		http.Error(w, "No valid data ID found", http.StatusForbidden)
+		return
+	}
+
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/%s", dataID)
+
+	// Mengambil user_id dari header
+	userID := r.Header.Get("user_id")
+	if userID == "" {
+		http.Error(w, "No valid user ID found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token not found for user")
+		return
+	}
+
+	// Buat payload berisi informasi token
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
 	// Coba ambil file dari form
@@ -148,16 +231,24 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 func GetDosen(respw http.ResponseWriter, req *http.Request) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
 
-	// Ambil login dari header
-	login := at.GetLoginFromHeader(req)
-	if login == "" {
-		http.Error(respw, "No valid login found", http.StatusForbidden)
+	// Mengambil user_id dari header
+	userID := req.Header.Get("user_id")
+	if userID == "" {
+		http.Error(respw, "No valid user ID found", http.StatusForbidden)
 		return
 	}
 
-	// Buat payload berisi informasi login
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(respw, http.StatusNotFound, "Token not found for user")
+		return
+	}
+
+	// Buat payload berisi informasi token
 	payload := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": login,
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
 	doc, err := api.GetData(urlTarget, payload, nil)
