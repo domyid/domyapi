@@ -448,8 +448,8 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 	var bimbinganID string
 	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
 		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
-		if topik == requestData.Topik && !disetujui {
+		disetujui := s.Find("td").Eq(4).Text() == ""
+		if topik == requestData.Topik && disetujui {
 			bimbinganID, _ = s.Find("td").Eq(5).Find("button").Attr("data-id")
 			return
 		}
