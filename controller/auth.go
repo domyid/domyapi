@@ -34,6 +34,11 @@ func saveMahasiswaData(_ *http.Client, token, email string) error {
 	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
 	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
 
+	// Ubah nomor HP yang diawali dengan angka 0 menjadi 62
+	if strings.HasPrefix(noHp, "0") {
+		noHp = "62" + noHp[1:]
+	}
+
 	mahasiswa := model.Mahasiswa{
 		Email:        email,
 		NIM:          nim,
@@ -69,6 +74,11 @@ func saveDosenData(_ *http.Client, token, email string) error {
 	nidn := strings.TrimSpace(doc.Find("#block-nidn .input-nidn").Text())
 	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
 	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
+
+	// Ubah nomor HP yang diawali dengan angka 0 menjadi 62
+	if strings.HasPrefix(noHp, "0") {
+		noHp = "62" + noHp[1:]
+	}
 
 	dosen := model.Dosen{
 		Email: email,
