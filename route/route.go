@@ -31,6 +31,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetListTugasAkhirAllMahasiswa(w, r)
 	case method == "POST" && path == "/data/list/bimbingan":
 		controller.GetListBimbinganMahasiswabyNim(w, r)
+	case method == "POST" && path == "/approve/bimbingan":
+		controller.UpdateBimbinganDisetujui(w, r)
 	default:
 		controller.NotFound(w, r)
 	}

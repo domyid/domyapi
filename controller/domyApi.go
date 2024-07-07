@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -403,6 +404,130 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 
 	// Kembalikan daftar bimbingan sebagai respon JSON
 	at.WriteJSON(w, http.StatusOK, listBimbingan)
+}
+
+// Fungsi untuk mengambil data bimbingan dari URL dan mengupdate field "disetujui"
+func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
+	// Mengambil user_id dari header
+	userID := r.Header.Get("user_id")
+	if userID == "" {
+		http.Error(w, "No valid user ID found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil data ID dari body request
+	var requestData struct {
+		Topik string `json:"topik"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil || requestData.Topik == "" {
+		http.Error(w, "Invalid request body or topik not provided", http.StatusBadRequest)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan user_id
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	// Buat payload berisi informasi token
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
+	}
+
+	// URL untuk mendapatkan data bimbingan
+	listURL := "https://siakad.ulbi.ac.id/siakad/list_bimbingan"
+
+	// Mengirim permintaan GET untuk mendapatkan data list bimbingan
+	doc, err := api.GetData(listURL, payload, nil)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Mencari topik bimbingan yang belum disetujui
+	var dataID string
+	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
+		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
+		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
+		if topik == requestData.Topik && !disetujui {
+			dataID, _ = s.Find("td").Eq(5).Find("button").Attr("data-id")
+			return
+		}
+	})
+
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the provided topik", http.StatusForbidden)
+		return
+	}
+
+	// URL untuk mendapatkan data bimbingan tertentu
+	getURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", dataID)
+
+	// Mengirim permintaan GET untuk mendapatkan data bimbingan
+	doc, err = api.GetData(getURL, payload, nil)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Ekstrak informasi dari respon
+	bimbinganke := doc.Find("input[name='bimbinganke']").AttrOr("value", "")
+	nip := doc.Find("input[name='nip']").AttrOr("value", "")
+	tglbimbingan := doc.Find("input[name='tglbimbingan']").AttrOr("value", "")
+	topikbimbingan := doc.Find("input[name='topikbimbingan']").AttrOr("value", "")
+	bahasan := doc.Find("textarea[name='bahasan']").Text()
+	link := doc.Find("input[name='link[]']").AttrOr("value", "")
+	key := doc.Find("input[name='key']").AttrOr("value", "")
+	act := doc.Find("input[name='act']").AttrOr("value", "")
+
+	// Membuat form data untuk dikirimkan
+	form := url.Values{}
+	form.Add("bimbinganke", bimbinganke)
+	form.Add("nip", nip)
+	form.Add("tglbimbingan", tglbimbingan)
+	form.Add("topikbimbingan", topikbimbingan)
+	form.Add("disetujui", "1")
+	form.Add("bahasan", bahasan)
+	form.Add("link[]", link)
+	form.Add("key", key)
+	form.Add("act", act)
+
+	// URL untuk mengupdate data bimbingan
+	postURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", dataID)
+
+	// Mengirim permintaan POST untuk memperbarui data bimbingan
+	req, err := http.NewRequest("POST", postURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		http.Error(w, "Error creating request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", tokenData.Token))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Error sending request", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
+		at.WriteJSON(w, resp.StatusCode, "unexpected status code")
+		return
+	}
+
+	// Buat respons sukses berisi data bimbingan yang diperbarui
+	responseData := map[string]interface{}{
+		"status":  "success",
+		"message": "Bimbingan berhasil di approve!",
+	}
+
+	at.WriteJSON(w, http.StatusOK, responseData)
 }
 
 func NotFound(respw http.ResponseWriter, req *http.Request) {
