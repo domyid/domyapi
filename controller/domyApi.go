@@ -286,7 +286,7 @@ func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request)
 	}
 
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
-	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.UserID)
+	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(respw, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
 		return

@@ -11,11 +11,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func FetchListTugasAkhirMahasiswa(userID string) ([]model.TugasAkhirMahasiswa, error) {
+func FetchListTugasAkhirMahasiswa(noHp string) ([]model.TugasAkhirMahasiswa, error) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/list_ta"
 
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	// Mengambil token dari database berdasarkan no_hp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil {
 		return nil, fmt.Errorf("error Fetching Token: %v", err)
 	}
@@ -55,11 +55,11 @@ func FetchListTugasAkhirMahasiswa(userID string) ([]model.TugasAkhirMahasiswa, e
 	return listTA, nil
 }
 
-func FetchListTugasAkhirAllMahasiswa(userID string) ([]model.TugasAkhirAllMahasiswa, error) {
+func FetchListTugasAkhirAllMahasiswa(noHp string) ([]model.TugasAkhirAllMahasiswa, error) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/list_ta"
 
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	// Mengambil token dari database berdasarkan no_hp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil {
 		return nil, fmt.Errorf("error Fetching Token: %v", err)
 	}
