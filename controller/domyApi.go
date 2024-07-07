@@ -382,7 +382,6 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listBimbingan)
 }
 
-// UpdateBimbinganDisetujui handles the request to update the "disetujui" field for Bimbingan
 func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 	// Mengambil nohp dari header
 	noHp := r.Header.Get("nohp")
@@ -391,15 +390,39 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mengambil data ID dari body request
+	// Mengambil data dari body request
 	var requestData struct {
+		NIM   string `json:"nim"`
 		Topik string `json:"topik"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&requestData)
-	if err != nil || requestData.Topik == "" {
-		http.Error(w, "Invalid request body or topik not provided", http.StatusBadRequest)
+	if err != nil || requestData.NIM == "" || requestData.Topik == "" {
+		http.Error(w, "Invalid request body or required fields not provided", http.StatusBadRequest)
 		return
 	}
+
+	// Mengambil daftar bimbingan berdasarkan noHp dan NIM
+	listBimbingan, err := api.FetchListBimbingan(noHp, requestData.NIM)
+	if err != nil || len(listBimbingan) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Bimbingan or no data found")
+		return
+	}
+
+	// Cari dataID berdasarkan Topik
+	var dataID string
+	for _, bimbingan := range listBimbingan {
+		if bimbingan.Topik == requestData.Topik && !bimbingan.Disetujui {
+			dataID = bimbingan.DataID
+			break
+		}
+	}
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the provided topik", http.StatusNotFound)
+		return
+	}
+
+	// URL untuk mendapatkan data bimbingan tertentu
+	getURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", dataID)
 
 	// Mengambil token dari database berdasarkan nohp
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
@@ -414,37 +437,8 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
-	// URL untuk mendapatkan data bimbingan
-	listURL := "https://siakad.ulbi.ac.id/siakad/list_bimbingan"
-
-	// Mengirim permintaan GET untuk mendapatkan data list bimbingan
-	doc, err := api.GetData(listURL, payload, nil)
-	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// Mencari topik bimbingan yang belum disetujui
-	var dataID string
-	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
-		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
-		if topik == requestData.Topik && !disetujui {
-			dataID, _ = s.Find("td").Eq(5).Find("button").Attr("data-id")
-			return
-		}
-	})
-
-	if dataID == "" {
-		http.Error(w, "No valid data ID found for the provided topik", http.StatusForbidden)
-		return
-	}
-
-	// URL untuk mendapatkan data bimbingan tertentu
-	getURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", dataID)
-
 	// Mengirim permintaan GET untuk mendapatkan data bimbingan
-	doc, err = api.GetData(getURL, payload, nil)
+	doc, err := api.GetData(getURL, payload, nil)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
@@ -455,8 +449,6 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 	nip := doc.Find("input[name='nip']").AttrOr("value", "")
 	tglbimbingan := doc.Find("input[name='tglbimbingan']").AttrOr("value", "")
 	topikbimbingan := doc.Find("input[name='topikbimbingan']").AttrOr("value", "")
-	bahasan := doc.Find("textarea[name='bahasan']").Text()
-	link := doc.Find("input[name='link[]']").AttrOr("value", "")
 	key := doc.Find("input[name='key']").AttrOr("value", "")
 	act := doc.Find("input[name='act']").AttrOr("value", "")
 
@@ -467,8 +459,6 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 	form.Add("tglbimbingan", tglbimbingan)
 	form.Add("topikbimbingan", topikbimbingan)
 	form.Add("disetujui", "1")
-	form.Add("bahasan", bahasan)
-	form.Add("link[]", link)
 	form.Add("key", key)
 	form.Add("act", act)
 
