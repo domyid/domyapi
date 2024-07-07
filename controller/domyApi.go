@@ -270,15 +270,23 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request) {
-	// Mengambil user_id dari header
-	userID := req.Header.Get("user_id")
-	if userID == "" {
-		http.Error(respw, "No valid user ID found", http.StatusForbidden)
+	// Mengambil no_hp dari header
+	noHp := req.Header.Get("no_hp")
+	if noHp == "" {
+		http.Error(respw, "No valid no_hp found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan no_hp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
-	listTA, err := api.FetchListTugasAkhirAllMahasiswa(userID)
+	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.UserID)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(respw, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
 		return
