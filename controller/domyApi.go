@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	config "github.com/domyid/domyapi/config"
@@ -289,7 +288,7 @@ func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request)
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
 	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
 	if err != nil || len(listTA) == 0 {
-		at.WriteJSON(respw, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
+		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
@@ -327,7 +326,7 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
 	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
 	if err != nil || len(listTA) == 0 {
-		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
@@ -402,29 +401,6 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mengambil daftar bimbingan berdasarkan noHp dan NIM
-	listBimbingan, err := api.FetchListBimbingan(noHp, requestData.NIM)
-	if err != nil || len(listBimbingan) == 0 {
-		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Bimbingan or no data found")
-		return
-	}
-
-	// Cari dataID berdasarkan Topik
-	var dataID string
-	for _, bimbingan := range listBimbingan {
-		if bimbingan.Topik == requestData.Topik && !bimbingan.Disetujui {
-			dataID = bimbingan.DataID
-			break
-		}
-	}
-	if dataID == "" {
-		http.Error(w, "No valid data ID found for the provided topik", http.StatusNotFound)
-		return
-	}
-
-	// URL untuk mendapatkan data bimbingan tertentu
-	getURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", dataID)
-
 	// Mengambil token dari database berdasarkan nohp
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil {
@@ -433,13 +409,62 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
+	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
+	if err != nil || len(listTA) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
+		return
+	}
+
+	// Cari data_id berdasarkan NIM
+	var dataID string
+	for _, ta := range listTA {
+		if ta.NIM == requestData.NIM {
+			dataID = ta.DataID
+			break
+		}
+	}
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the given NIM", http.StatusNotFound)
+		return
+	}
+
+	// URL untuk mendapatkan data bimbingan berdasarkan data_id
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
+
 	// Buat payload berisi informasi token
 	payload := map[string]string{
 		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
+	// Mengirim permintaan untuk mengambil data list bimbingan
+	doc, err := api.GetData(urlTarget, payload, nil)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Mencari topik bimbingan yang belum disetujui
+	var bimbinganID string
+	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
+		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
+		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
+		if topik == requestData.Topik && !disetujui {
+			bimbinganID, _ = s.Find("td").Eq(5).Find("button").Attr("data-id")
+			return
+		}
+	})
+
+	if bimbinganID == "" {
+		http.Error(w, "No valid data ID found for the provided topik", http.StatusNotFound)
+		return
+	}
+
+	// URL untuk mendapatkan data bimbingan tertentu
+	getURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", bimbinganID)
+
 	// Mengirim permintaan GET untuk mendapatkan data bimbingan
-	doc, err := api.GetData(getURL, payload, nil)
+	doc, err = api.GetData(getURL, payload, nil)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
@@ -464,7 +489,7 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 	form.Add("act", act)
 
 	// URL untuk mengupdate data bimbingan
-	postURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", dataID)
+	postURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", bimbinganID)
 
 	// Mengirim permintaan POST untuk memperbarui data bimbingan
 	req, err := http.NewRequest("POST", postURL, strings.NewReader(form.Encode()))
@@ -488,15 +513,6 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Force refresh data dengan menambahkan timestamp ke URL
-	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s?t=%d", dataID, time.Now().Unix())
-	doc, err = api.GetData(urlTarget, payload, nil)
-	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	_ = doc
-
 	// Buat respons sukses berisi data bimbingan yang diperbarui
 	responseData := map[string]interface{}{
 		"status":  "success",
@@ -505,6 +521,7 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 
 	at.WriteJSON(w, http.StatusOK, responseData)
 }
+
 func NotFound(respw http.ResponseWriter, req *http.Request) {
 	var resp model.Response
 	resp.Response = "Not Found"
