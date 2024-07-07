@@ -18,85 +18,59 @@ import (
 )
 
 func saveMahasiswaData(_ *http.Client, token, email string) (string, error) {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
-
 	cookies := map[string]string{
 		"SIAKAD_CLOUD_ACCESS": token,
 	}
 
-	doc, err := helper.GetData(urlTarget, cookies, nil)
+	mahasiswa, err := helper.ExtractMahasiswaData(cookies)
 	if err != nil {
 		return "", err
 	}
 
-	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
-	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
-	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
-	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
+	mahasiswa.Email = email
 
 	// Ubah nomor HP yang diawali dengan angka 0 menjadi 62
-	if strings.HasPrefix(noHp, "0") {
-		noHp = "62" + noHp[1:]
-	}
-
-	mahasiswa := model.Mahasiswa{
-		Email:        email,
-		NIM:          nim,
-		Nama:         nama,
-		ProgramStudi: programStudi,
-		NomorHp:      noHp,
+	if strings.HasPrefix(mahasiswa.NomorHp, "0") {
+		mahasiswa.NomorHp = "62" + mahasiswa.NomorHp[1:]
 	}
 
 	// Cek apakah data mahasiswa sudah ada berdasarkan email
 	existingMahasiswa, err := atdb.GetOneDoc[model.Mahasiswa](config.Mongoconn, "mahasiswa", primitive.M{"email": email})
 	if err == nil && existingMahasiswa.Email != "" {
 		// Data mahasiswa sudah ada, tidak perlu disimpan lagi
-		return noHp, nil
+		return mahasiswa.NomorHp, nil
 	}
 
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "mahasiswa", mahasiswa)
-	return noHp, err
+	return mahasiswa.NomorHp, err
 }
 
 func saveDosenData(_ *http.Client, token, email string) (string, error) {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
-
 	cookies := map[string]string{
 		"SIAKAD_CLOUD_ACCESS": token,
 	}
 
-	doc, err := helper.GetData(urlTarget, cookies, nil)
+	dosen, err := helper.ExtractDosenData(cookies)
 	if err != nil {
 		return "", err
 	}
 
-	nip := strings.TrimSpace(doc.Find("#block-nip .input-nip").Text())
-	nidn := strings.TrimSpace(doc.Find("#block-nidn .input-nidn").Text())
-	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
-	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
+	dosen.Email = email
 
 	// Ubah nomor HP yang diawali dengan angka 0 menjadi 62
-	if strings.HasPrefix(noHp, "0") {
-		noHp = "62" + noHp[1:]
-	}
-
-	dosen := model.Dosen{
-		Email: email,
-		NIP:   nip,
-		NIDN:  nidn,
-		Nama:  nama,
-		NoHp:  noHp,
+	if strings.HasPrefix(dosen.NoHp, "0") {
+		dosen.NoHp = "62" + dosen.NoHp[1:]
 	}
 
 	// Cek apakah data dosen sudah ada berdasarkan email
 	existingDosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": email})
 	if err == nil && existingDosen.Email != "" {
 		// Data dosen sudah ada, tidak perlu disimpan lagi
-		return noHp, nil
+		return dosen.NoHp, nil
 	}
 
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "dosen", dosen)
-	return noHp, err
+	return dosen.NoHp, err
 }
 
 func LoginSiakad(w http.ResponseWriter, req *http.Request) {
