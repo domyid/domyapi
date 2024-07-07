@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	config "github.com/domyid/domyapi/config"
@@ -487,6 +488,15 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Force refresh data dengan menambahkan timestamp ke URL
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s?t=%d", dataID, time.Now().Unix())
+	doc, err = api.GetData(urlTarget, payload, nil)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	_ = doc
+
 	// Buat respons sukses berisi data bimbingan yang diperbarui
 	responseData := map[string]interface{}{
 		"status":  "success",
@@ -495,7 +505,6 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 
 	at.WriteJSON(w, http.StatusOK, responseData)
 }
-
 func NotFound(respw http.ResponseWriter, req *http.Request) {
 	var resp model.Response
 	resp.Response = "Not Found"
