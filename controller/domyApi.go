@@ -271,7 +271,7 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 
 func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil no_hp dari header
-	noHp := req.Header.Get("no_hp")
+	noHp := req.Header.Get("nohp")
 	if noHp == "" {
 		http.Error(respw, "No valid no_hp found", http.StatusForbidden)
 		return
@@ -324,7 +324,7 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
-	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.UserID)
+	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
 		return
