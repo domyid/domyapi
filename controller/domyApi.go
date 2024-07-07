@@ -20,18 +20,17 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// GetMahasiswa handles the request to get Mahasiswa data
 func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
-
-	// Mengambil user_id dari header
-	userID := req.Header.Get("user_id")
-	if userID == "" {
-		http.Error(respw, "No valid user ID found", http.StatusForbidden)
+	// Mengambil nohp dari header
+	noHp := req.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(respw, "No valid phone number found", http.StatusForbidden)
 		return
 	}
 
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
@@ -39,28 +38,15 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Buat payload berisi informasi token
-	payload := map[string]string{
+	cookies := map[string]string{
 		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
-	doc, err := api.GetData(urlTarget, payload, nil)
+	// Gunakan helper untuk mengekstrak data mahasiswa
+	mahasiswa, err := api.ExtractMahasiswaData(cookies)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
-	}
-
-	// Ekstrak informasi mahasiswa dan hapus spasi berlebih
-	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
-	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
-	programStudi := strings.TrimSpace(doc.Find("#block-idunit .input-idunit").Text())
-	noHp := strings.TrimSpace(doc.Find("#block-hp .input-hp").Text())
-
-	// Buat instance Mahasiswa
-	mahasiswa := model.Mahasiswa{
-		NIM:          nim,
-		Nama:         nama,
-		ProgramStudi: programStudi,
-		NomorHp:      noHp,
 	}
 
 	// Kembalikan instance Mahasiswa sebagai respon JSON
@@ -68,15 +54,23 @@ func GetMahasiswa(respw http.ResponseWriter, req *http.Request) {
 }
 
 func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
-	// Mengambil user_id dari header
-	userID := r.Header.Get("user_id")
-	if userID == "" {
-		http.Error(w, "No valid user ID found", http.StatusForbidden)
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir
-	listTA, err := api.FetchListTugasAkhirMahasiswa(userID)
+	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.UserID)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
 		return
@@ -90,14 +84,6 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/add/%s", dataID)
-
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
-	if err != nil {
-		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
-		return
-	}
 
 	// Buat payload berisi informasi token
 	payload := map[string]string{
@@ -183,15 +169,23 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
-	// Mengambil user_id dari header
-	userID := r.Header.Get("user_id")
-	if userID == "" {
-		http.Error(w, "No valid user ID found", http.StatusForbidden)
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir
-	listTA, err := api.FetchListTugasAkhirMahasiswa(userID)
+	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.UserID)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
 		return
@@ -205,14 +199,6 @@ func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
-
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
-	if err != nil {
-		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
-		return
-	}
 
 	// Buat payload berisi informasi token
 	payload := map[string]string{
@@ -252,17 +238,16 @@ func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetDosen(respw http.ResponseWriter, req *http.Request) {
-	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
 
-	// Mengambil user_id dari header
-	userID := req.Header.Get("user_id")
-	if userID == "" {
-		http.Error(respw, "No valid user ID found", http.StatusForbidden)
+	// Mengambil nohp dari header
+	noHp := req.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(respw, "No valid phone number found", http.StatusForbidden)
 		return
 	}
 
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
@@ -270,30 +255,16 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Buat payload berisi informasi token
-	payload := map[string]string{
+	cookies := map[string]string{
 		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
-	doc, err := api.GetData(urlTarget, payload, nil)
+	// Gunakan helper untuk mengekstrak data mahasiswa
+	dosen, err := api.ExtractMahasiswaData(cookies)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	// Ekstrak informasi dosen dengan trim spasi
-	nip := strings.TrimSpace(doc.Find("#block-nip .input-nip").Text())
-	nidn := strings.TrimSpace(doc.Find("#block-nidn .input-nidn").Text())
-	nama := strings.TrimSpace(doc.Find("#block-nama .input-nama").Text())
-	noHp := strings.TrimSpace(doc.Find("#block-nohp .input-nohp").Text())
-
-	// Buat instance Dosen
-	dosen := model.Dosen{
-		NIP:  nip,
-		NIDN: nidn,
-		Nama: nama,
-		NoHp: noHp,
-	}
-
 	// Konversi ke JSON dan kirimkan sebagai respon
 	at.WriteJSON(respw, http.StatusOK, dosen)
 }
@@ -317,11 +288,12 @@ func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request)
 	at.WriteJSON(respw, http.StatusOK, listTA)
 }
 
+// GetListBimbinganMahasiswabyNim handles the request to get the list of Bimbingan for a specific NIM
 func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
-	// Mengambil user_id dari header
-	userID := r.Header.Get("user_id")
-	if userID == "" {
-		http.Error(w, "No valid user ID found", http.StatusForbidden)
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
 		return
 	}
 
@@ -330,17 +302,21 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 		NIM string `json:"nim"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&requestData)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err != nil || requestData.NIM == "" {
+		http.Error(w, "Invalid request body or no valid NIM found", http.StatusBadRequest)
 		return
 	}
-	if requestData.NIM == "" {
-		http.Error(w, "No valid NIM found", http.StatusBadRequest)
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
-	listTA, err := api.FetchListTugasAkhirAllMahasiswa(userID)
+	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.UserID)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
 		return
@@ -360,14 +336,6 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
-
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
-	if err != nil {
-		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
-		return
-	}
 
 	// Buat payload berisi informasi token
 	payload := map[string]string{
@@ -406,12 +374,12 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listBimbingan)
 }
 
-// Fungsi untuk mengambil data bimbingan dari URL dan mengupdate field "disetujui"
+// UpdateBimbinganDisetujui handles the request to update the "disetujui" field for Bimbingan
 func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
-	// Mengambil user_id dari header
-	userID := r.Header.Get("user_id")
-	if userID == "" {
-		http.Error(w, "No valid user ID found", http.StatusForbidden)
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
 		return
 	}
 
@@ -425,8 +393,8 @@ func UpdateBimbinganDisetujui(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mengambil token dari database berdasarkan user_id
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": userID})
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
