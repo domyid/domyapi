@@ -260,7 +260,7 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Gunakan helper untuk mengekstrak data mahasiswa
-	dosen, err := api.ExtractMahasiswaData(cookies)
+	dosen, err := api.ExtractDosenData(cookies)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusInternalServerError, err.Error())
 		return
