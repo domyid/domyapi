@@ -29,7 +29,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetDosen(w, r)
 	case method == "GET" && path == "/data/list/ta":
 		controller.GetListTugasAkhirAllMahasiswa(w, r)
-	case method == "GET" && path == "/data/list/bimbingan":
+	case method == "POST" && path == "/data/list/bimbingan":
 		controller.GetListBimbinganMahasiswabyNim(w, r)
 	default:
 		controller.NotFound(w, r)
