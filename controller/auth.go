@@ -17,7 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func saveMahasiswaData(_ *http.Client, token, email string) error {
+func saveMahasiswaData(_ *http.Client, token, email string) (string, error) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_mahasiswa"
 
 	cookies := map[string]string{
@@ -26,7 +26,7 @@ func saveMahasiswaData(_ *http.Client, token, email string) error {
 
 	doc, err := helper.GetData(urlTarget, cookies, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	nim := strings.TrimSpace(doc.Find("#block-nim .input-nim").Text())
@@ -51,14 +51,14 @@ func saveMahasiswaData(_ *http.Client, token, email string) error {
 	existingMahasiswa, err := atdb.GetOneDoc[model.Mahasiswa](config.Mongoconn, "mahasiswa", primitive.M{"email": email})
 	if err == nil && existingMahasiswa.Email != "" {
 		// Data mahasiswa sudah ada, tidak perlu disimpan lagi
-		return nil
+		return noHp, nil
 	}
 
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "mahasiswa", mahasiswa)
-	return err
+	return noHp, err
 }
 
-func saveDosenData(_ *http.Client, token, email string) error {
+func saveDosenData(_ *http.Client, token, email string) (string, error) {
 	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
 
 	cookies := map[string]string{
@@ -67,7 +67,7 @@ func saveDosenData(_ *http.Client, token, email string) error {
 
 	doc, err := helper.GetData(urlTarget, cookies, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	nip := strings.TrimSpace(doc.Find("#block-nip .input-nip").Text())
@@ -92,11 +92,11 @@ func saveDosenData(_ *http.Client, token, email string) error {
 	existingDosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": email})
 	if err == nil && existingDosen.Email != "" {
 		// Data dosen sudah ada, tidak perlu disimpan lagi
-		return nil
+		return noHp, nil
 	}
 
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "dosen", dosen)
-	return err
+	return noHp, err
 }
 
 func LoginSiakad(w http.ResponseWriter, req *http.Request) {
@@ -126,6 +126,23 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	var noHp string
+
+	// Ambil dan simpan data mahasiswa atau dosen
+	if reqLogin.Role == "mhs" {
+		noHp, err = saveMahasiswaData(client, res.Session, reqLogin.Email)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	} else if reqLogin.Role == "dosen" {
+		noHp, err = saveDosenData(client, res.Session, reqLogin.Email)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
 	// Cek apakah user_id sudah ada di database
 	existingTokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": reqLogin.Email})
 	if err != nil {
@@ -135,6 +152,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			Token:     res.Session,
 			Role:      reqLogin.Role,
 			Password:  reqLogin.Password,
+			NoHp:      noHp,
 			UpdatedAt: time.Now(),
 		}
 		_, insertErr := atdb.InsertOneDoc(config.Mongoconn, "tokens", tokenData)
@@ -151,6 +169,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		update := bson.M{
 			"$set": bson.M{
 				"token":      res.Session,
+				"nohp":       noHp,
 				"updated_at": time.Now(),
 			},
 		}
@@ -163,21 +182,6 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		at.WriteJSON(w, http.StatusOK, existingTokenData)
-	}
-
-	// Ambil dan simpan data mahasiswa atau dosen
-	if reqLogin.Role == "mhs" {
-		err = saveMahasiswaData(client, res.Session, reqLogin.Email)
-		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-	} else if reqLogin.Role == "dosen" {
-		err = saveDosenData(client, res.Session, reqLogin.Email)
-		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-			return
-		}
 	}
 }
 

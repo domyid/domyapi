@@ -47,6 +47,7 @@ type TokenData struct {
 	Password  string    `bson:"password" json:"password"`
 	Token     string    `bson:"token" json:"token"`
 	Role      string    `bson:"role" json:"role"`
+	NoHp      string    `bson:"nohp" json:"nohp"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 
