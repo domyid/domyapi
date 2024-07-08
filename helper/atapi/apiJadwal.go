@@ -120,21 +120,21 @@ func FetchListAbsensi(dataID, token string) ([]model.Absensi, error) {
 
 	var listAbsensi []model.Absensi
 
-	// Select the specific table inside the div with class 'table-responsive'
+	/// Select the specific table inside the div with class 'table-responsive'
 	doc.Find(".table-responsive table.dataTable tbody tr").Each(func(i int, s *goquery.Selection) {
-		pertemuan := strings.TrimSpace(s.Find("td").Eq(0).Text())
-		tanggalJam := strings.TrimSpace(s.Find("td").Eq(1).Text())
+		pertemuan := strings.TrimSpace(s.Find("td.text-center").Eq(0).Text())
+		tanggalJam := strings.TrimSpace(s.Find("td.text-center").Eq(1).Text())
 		tanggalJamSplit := strings.Split(tanggalJam, "\n")
 		tanggal := strings.TrimSpace(tanggalJamSplit[0])
 		jam := ""
 		if len(tanggalJamSplit) > 1 {
 			jam = strings.TrimSpace(tanggalJamSplit[1])
 		}
-		materi := strings.TrimSpace(s.Find("td").Eq(2).Find("hr").Prev().Text())
-		pengajar := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		ruang := strings.TrimSpace(s.Find("td").Eq(4).Text())
-		hadir := strings.TrimSpace(s.Find("td").Eq(5).Text())
-		persentase := strings.TrimSpace(s.Find("td").Eq(6).Text())
+		materi := strings.TrimSpace(s.Find("td.word-wrap").Eq(0).Text())
+		pengajar := strings.TrimSpace(s.Find("td.word-wrap").Eq(1).Text())
+		ruang := strings.TrimSpace(s.Find("td.text-center").Eq(2).Text())
+		hadir := strings.TrimSpace(s.Find("td.text-right").Eq(0).Text())
+		persentase := strings.TrimSpace(s.Find("td.text-right").Eq(1).Text())
 
 		absensi := model.Absensi{
 			Pertemuan:  pertemuan,
