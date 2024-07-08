@@ -270,6 +270,32 @@ func GetDosen(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, dosen)
 }
 
+// Fungsi untuk menangani permintaan HTTP untuk mendapatkan data jadwal mengajar
+func GetJadwalMengajar(w http.ResponseWriter, r *http.Request) {
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	var requestData struct {
+		Periode string `json:"periode"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil || requestData.Periode == "" {
+		http.Error(w, "Invalid request body or periode not provided", http.StatusBadRequest)
+		return
+	}
+
+	listJadwal, err := api.FetchJadwalMengajar(noHp, requestData.Periode)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	at.WriteJSON(w, http.StatusOK, listJadwal)
+}
+
 func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil no_hp dari header
 	noHp := req.Header.Get("nohp")

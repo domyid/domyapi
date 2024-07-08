@@ -126,3 +126,16 @@ type TugasAkhirMahasiswa struct {
 	TanggalMulai string `bson:"tanggal_mulai,omitempty" json:"tanggal_mulai"`
 	Status       string `bson:"status,omitempty" json:"status"`
 }
+
+type JadwalMengajar struct {
+	No           string `json:"no"`
+	Kode         string `json:"kode"`
+	MataKuliah   string `json:"mata_kuliah"`
+	SKS          string `json:"sks"`
+	Smt          string `json:"smt"`
+	Kelas        string `json:"kelas"`
+	ProgramStudi string `json:"program_studi"`
+	Hari         string `json:"hari"`
+	Waktu        string `json:"waktu"`
+	Ruang        string `json:"ruang"`
+}

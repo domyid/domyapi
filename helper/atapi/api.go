@@ -8,7 +8,9 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-querystring/query"
@@ -253,6 +255,45 @@ func GetData(url string, cookies map[string]string, headers map[string]string) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+
+	for name, value := range cookies {
+		req.AddCookie(&http.Cookie{
+			Name:  name,
+			Value: value,
+		})
+	}
+
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create document from response: %w", err)
+	}
+
+	return doc, nil
+}
+
+// GetDataPOST fetches data from the specified URL using the provided cookies and form data.
+func GetDataPOST(url string, cookies map[string]string, formData url.Values, headers map[string]string) (*goquery.Document, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", url, strings.NewReader(formData.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	for name, value := range cookies {
 		req.AddCookie(&http.Cookie{
