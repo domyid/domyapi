@@ -101,7 +101,12 @@ func FetchListBimbingan(dataID, token string) ([]model.ListBimbingan, error) {
 		tanggal := strings.TrimSpace(s.Find("td").Eq(1).Text())
 		dosenPembimbing := strings.TrimSpace(s.Find("td").Eq(2).Text())
 		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
+		disetujui := s.Find("td").Eq(4).Text() != ""
+		if s.Find("td").Eq(4).Find("i").HasClass("fa-check") {
+			disetujui = true
+		} else {
+			disetujui = false
+		}
 		dataID, _ := s.Find("td").Eq(5).Find("button").Attr("data-id")
 
 		listbimbingan := model.ListBimbingan{
