@@ -169,75 +169,6 @@ func PostBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, responseData)
 }
 
-func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
-	// Mengambil nohp dari header
-	noHp := r.Header.Get("nohp")
-	if noHp == "" {
-		http.Error(w, "No valid phone number found", http.StatusForbidden)
-		return
-	}
-
-	// Mengambil token dari database berdasarkan nohp
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
-	if err != nil {
-		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
-		return
-	}
-
-	// Memanggil fungsi helper untuk mendapatkan list tugas akhir
-	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.UserID)
-	if err != nil || len(listTA) == 0 {
-		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
-		return
-	}
-
-	// Ambil data_id dari list tugas akhir pertama (atau sesuai logika yang Anda inginkan)
-	dataID := listTA[0].DataID
-	if dataID == "" {
-		http.Error(w, "No valid data ID found", http.StatusForbidden)
-		return
-	}
-
-	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
-
-	// Buat payload berisi informasi token
-	payload := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
-	}
-
-	// Mengirim permintaan untuk mengambil data list bimbingan
-	doc, err := api.GetData(urlTarget, payload, nil)
-	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// Ekstrak informasi dari respon
-	var listBimbingan []model.ListBimbingan
-	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
-		no := strings.TrimSpace(s.Find("td").Eq(0).Text())
-		tanggal := strings.TrimSpace(s.Find("td").Eq(1).Text())
-		dosenPembimbing := strings.TrimSpace(s.Find("td").Eq(2).Text())
-		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		disetujui := s.Find("td").Eq(4).Find("i").HasClass("fa-check")
-		dataID, _ := s.Find("td").Eq(5).Find("button").Attr("data-id")
-
-		listbimbingan := model.ListBimbingan{
-			No:              no,
-			Tanggal:         tanggal,
-			DosenPembimbing: dosenPembimbing,
-			Topik:           topik,
-			Disetujui:       disetujui,
-			DataID:          dataID,
-		}
-		listBimbingan = append(listBimbingan, listbimbingan)
-	})
-
-	// Kembalikan daftar bimbingan sebagai respon JSON
-	at.WriteJSON(w, http.StatusOK, listBimbingan)
-}
-
 func GetDosen(respw http.ResponseWriter, req *http.Request) {
 
 	// Mengambil nohp dari header
@@ -296,7 +227,7 @@ func GetJadwalMengajar(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listJadwal)
 }
 
-func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request) {
+func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil no_hp dari header
 	noHp := req.Header.Get("nohp")
 	if noHp == "" {
@@ -313,7 +244,7 @@ func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request)
 	}
 
 	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
-	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
+	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.NoHp)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
@@ -323,8 +254,8 @@ func GetListTugasAkhirAllMahasiswa(respw http.ResponseWriter, req *http.Request)
 	at.WriteJSON(respw, http.StatusOK, listTA)
 }
 
-// GetListBimbinganMahasiswabyNim handles the request to get the list of Bimbingan based on NIM
-func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
+func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
+	// Mengambil nohp dari header
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
 		http.Error(w, "No valid phone number found", http.StatusForbidden)
@@ -335,15 +266,12 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 		NIM string `json:"nim"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&requestData)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	if requestData.NIM == "" {
-		http.Error(w, "No valid NIM found", http.StatusBadRequest)
+	if err != nil || requestData.NIM == "" {
+		http.Error(w, "Invalid request body or NIM not provided", http.StatusBadRequest)
 		return
 	}
 
+	// Mengambil token dari database berdasarkan nohp
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
@@ -351,56 +279,21 @@ func GetListBimbinganMahasiswabyNim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
-	}
-
-	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
-	if err != nil || len(listTA) == 0 {
-		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
+	// Get data ID from Tugas Akhir list
+	dataID, err := api.GetDataIDFromTugasAkhir(noHp, requestData.NIM)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	var dataID string
-	for _, ta := range listTA {
-		if ta.NIM == requestData.NIM {
-			dataID = ta.DataID
-			break
-		}
-	}
-	if dataID == "" {
-		http.Error(w, "No valid data ID found for the given NIM", http.StatusNotFound)
-		return
-	}
-
-	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s?t=%d", dataID, time.Now().Unix())
-
-	doc, err := api.GetData(urlTarget, payload, nil)
+	// Fetch list bimbingan using the helper function
+	listBimbingan, err := api.FetchListBimbingan(dataID, tokenData.Token)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	var listBimbingan []model.ListBimbingan
-	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
-		no := strings.TrimSpace(s.Find("td").Eq(0).Text())
-		tanggal := strings.TrimSpace(s.Find("td").Eq(1).Text())
-		dosenPembimbing := strings.TrimSpace(s.Find("td").Eq(2).Text())
-		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		disetujui := s.Find("td").Eq(4).Text() != ""
-		dataID, _ := s.Find("td").Eq(5).Find("button").Attr("data-id")
-
-		listbimbingan := model.ListBimbingan{
-			No:              no,
-			Tanggal:         tanggal,
-			DosenPembimbing: dosenPembimbing,
-			Topik:           topik,
-			Disetujui:       disetujui,
-			DataID:          dataID,
-		}
-		listBimbingan = append(listBimbingan, listbimbingan)
-	})
-
+	// Kembalikan daftar bimbingan sebagai respon JSON
 	at.WriteJSON(w, http.StatusOK, listBimbingan)
 }
 
@@ -433,7 +326,7 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
-	listTA, err := api.FetchListTugasAkhirAllMahasiswa(tokenData.NoHp)
+	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.NoHp)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
 		return

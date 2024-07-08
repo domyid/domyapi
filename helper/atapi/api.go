@@ -285,15 +285,13 @@ func GetData(url string, cookies map[string]string, headers map[string]string) (
 	return doc, nil
 }
 
-// GetDataPOST fetches data from the specified URL using the provided cookies and form data.
+// GetDataPOST fetches data from the specified URL using the provided cookies with POST method.
 func GetDataPOST(url string, cookies map[string]string, formData url.Values, headers map[string]string) (*goquery.Document, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	for name, value := range cookies {
 		req.AddCookie(&http.Cookie{
@@ -305,6 +303,7 @@ func GetDataPOST(url string, cookies map[string]string, formData url.Values, hea
 	for name, value := range headers {
 		req.Header.Set(name, value)
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := client.Do(req)
 	if err != nil {

@@ -30,9 +30,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "POST" && path == "/jadwalmengajar":
 		controller.GetJadwalMengajar(w, r)
 	case method == "GET" && path == "/data/list/ta":
-		controller.GetListTugasAkhirAllMahasiswa(w, r)
+		controller.GetListTugasAkhirMahasiswa(w, r)
 	case method == "POST" && path == "/data/list/bimbingan":
-		controller.GetListBimbinganMahasiswabyNim(w, r)
+		controller.GetListBimbinganMahasiswa(w, r)
 	case method == "POST" && path == "/approve/bimbingan":
 		controller.ApproveBimbingan(w, r)
 	default:
