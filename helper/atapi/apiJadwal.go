@@ -12,6 +12,32 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// Fungsi untuk mengekstrak informasi dosen dari dokumen HTML dan mendapatkan dataid
+func ExtractDataid(cookies map[string]string) (string, error) {
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/data_pegawai"
+
+	// Mengirim permintaan untuk mengambil data dosen
+	doc, err := GetData(urlTarget, cookies, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// Ekstrak dataid dari elemen yang sesuai
+	dataid, exists := doc.Find(".profile-nav li.active a").Attr("href")
+	if !exists {
+		return "", fmt.Errorf("dataid not found")
+	}
+
+	// Ambil angka unik dari href
+	parts := strings.Split(dataid, "/")
+	if len(parts) == 0 {
+		return "", fmt.Errorf("invalid dataid format")
+	}
+	dataid = parts[len(parts)-1]
+
+	return dataid, nil
+}
+
 // Fungsi untuk mendapatkan data jadwal mengajar
 func FetchJadwalMengajar(noHp, periode string) ([]model.JadwalMengajar, error) {
 	// Mengambil token dari database berdasarkan no_hp
@@ -25,8 +51,14 @@ func FetchJadwalMengajar(noHp, periode string) ([]model.JadwalMengajar, error) {
 		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
 	}
 
+	// Ambil dataid dari halaman detail dosen
+	dataid, err := ExtractDosenData(payload)
+	if err != nil {
+		return nil, fmt.Errorf("error extracting dataid: %v", err)
+	}
+
 	// URL target untuk mendapatkan data jadwal mengajar
-	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_jadwalmengajar/%s", tokenData.UserID)
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_jadwalmengajar/%s", dataid)
 
 	// Mengirim permintaan untuk mendapatkan data jadwal mengajar dengan metode POST
 	formData := url.Values{}
