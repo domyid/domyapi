@@ -227,6 +227,197 @@ func GetJadwalMengajar(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listJadwal)
 }
 
+func GetListAbsensi(w http.ResponseWriter, r *http.Request) {
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	var requestData struct {
+		Periode string `json:"periode"`
+		Kelas   string `json:"kelas"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
+		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch jadwal mengajar
+	listJadwal, err := api.FetchJadwalMengajar(noHp, requestData.Periode)
+	if err != nil || len(listJadwal) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch jadwal mengajar or no data found")
+		return
+	}
+
+	// Cari data_id berdasarkan kelas
+	var dataID string
+	for _, jadwal := range listJadwal {
+		if jadwal.Kelas == requestData.Kelas {
+			dataID = jadwal.DataID
+			break
+		}
+	}
+
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the given class", http.StatusNotFound)
+		return
+	}
+
+	// Fetch list absensi using the data ID
+	listAbsensi, err := api.FetchListAbsensi(dataID, tokenData.Token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return list absensi as JSON response
+	at.WriteJSON(w, http.StatusOK, listAbsensi)
+}
+
+func GetListNilai(w http.ResponseWriter, r *http.Request) {
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	var requestData struct {
+		Periode string `json:"periode"`
+		Kelas   string `json:"kelas"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
+		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch jadwal mengajar
+	listJadwal, err := api.FetchJadwalMengajar(noHp, requestData.Periode)
+	if err != nil || len(listJadwal) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch jadwal mengajar or no data found")
+		return
+	}
+
+	// Cari data_id berdasarkan kelas
+	var dataID string
+	for _, jadwal := range listJadwal {
+		if jadwal.Kelas == requestData.Kelas {
+			dataID = jadwal.DataID
+			break
+		}
+	}
+
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the given class", http.StatusNotFound)
+		return
+	}
+
+	// Fetch list nilai using the data ID
+	listNilai, err := api.FetchListNilai(dataID, tokenData.Token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return list nilai as JSON response
+	at.WriteJSON(w, http.StatusOK, listNilai)
+}
+
+func GetListAbsensiDanNilai(w http.ResponseWriter, r *http.Request) {
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	var requestData struct {
+		Periode string `json:"periode"`
+		Kelas   string `json:"kelas"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
+		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch jadwal mengajar
+	listJadwal, err := api.FetchJadwalMengajar(noHp, requestData.Periode)
+	if err != nil || len(listJadwal) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch jadwal mengajar or no data found")
+		return
+	}
+
+	// Cari data_id, kode, dan mataKuliah berdasarkan kelas
+	var dataID, kode, mataKuliah string
+	for _, jadwal := range listJadwal {
+		if jadwal.Kelas == requestData.Kelas {
+			dataID = jadwal.DataID
+			kode = jadwal.Kode
+			mataKuliah = jadwal.MataKuliah
+			break
+		}
+	}
+
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the given class", http.StatusNotFound)
+		return
+	}
+
+	// Fetch list absensi using the data ID
+	listAbsensi, err := api.FetchListAbsensi(dataID, tokenData.Token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch list nilai using the data ID
+	listNilai, err := api.FetchListNilai(dataID, tokenData.Token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Buat respons yang menggabungkan list absensi dan list nilai serta kode dan mataKuliah
+	responseData := map[string]interface{}{
+		"kode":       kode,
+		"mataKuliah": mataKuliah,
+		"absensi":    listAbsensi,
+		"nilai":      listNilai,
+	}
+
+	// Return the combined response as JSON
+	at.WriteJSON(w, http.StatusOK, responseData)
+}
+
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil no_hp dari header
 	noHp := req.Header.Get("nohp")

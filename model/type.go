@@ -138,4 +138,28 @@ type JadwalMengajar struct {
 	Hari         string `json:"hari"`
 	Waktu        string `json:"waktu"`
 	Ruang        string `json:"ruang"`
+	DataID       string `json:"dataID"`
+}
+
+type ListAbsensi struct {
+	Pertemuan  string `json:"pertemuan"`
+	Waktu      string `json:"waktu"`
+	Materi     string `json:"materi"`
+	Pengajar   string `json:"pengajar"`
+	Ruang      string `json:"ruang"`
+	Hadir      string `json:"hadir"`
+	Persentase string `json:"persentase"`
+}
+
+type ListNilai struct {
+	No         string `json:"no"`
+	NIM        string `json:"nim"`
+	Nama       string `json:"nama"`
+	Hadir      string `json:"hadir"`
+	ATS        string `json:"ats"`
+	AAS        string `json:"aas"`
+	Nilai      string `json:"nilai"`
+	Grade      string `json:"grade"`
+	Lulus      string `json:"lulus"`
+	Keterangan string `json:"keterangan"`
 }
