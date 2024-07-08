@@ -84,6 +84,7 @@ type Dosen struct {
 	NoHp          string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
 	EmailKampus   string `json:"email_kampus,omitempty"`
 	EmailPribadi  string `json:"email_pribadi,omitempty"`
+	DataId        string `bson:"dataid,omitempty" json:"dataid,omitempty"`
 }
 
 type Bimbingan struct {

@@ -82,6 +82,14 @@ func ExtractDosenData(cookies map[string]string) (model.Dosen, error) {
 	emailKampus := strings.TrimSpace(doc.Find(".input-emailkampus").Text())
 	emailPribadi := strings.TrimSpace(doc.Find(".input-email").Text())
 
+	// Ekstrak angka unik dari href
+	href, exists := doc.Find(".profile-nav li.active a").Attr("href")
+	var dataid string
+	if exists {
+		parts := strings.Split(href, "/")
+		dataid = parts[len(parts)-1]
+	}
+
 	// Buat instance Dosen
 	dosen := model.Dosen{
 		NIP:           nip,
@@ -96,6 +104,7 @@ func ExtractDosenData(cookies map[string]string) (model.Dosen, error) {
 		NoHp:          noHp,
 		EmailKampus:   emailKampus,
 		EmailPribadi:  emailPribadi,
+		DataId:        dataid,
 	}
 
 	return dosen, nil
