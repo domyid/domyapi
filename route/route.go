@@ -27,7 +27,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.PostBimbinganMahasiswa(w, r)
 	case method == "GET" && path == "/data/dosen":
 		controller.GetDosen(w, r)
-	case method == "GET" && path == "/jadwalmengajar":
+	case method == "POST" && path == "/jadwalmengajar":
 		controller.GetJadwalMengajar(w, r)
 	case method == "GET" && path == "/data/list/ta":
 		controller.GetListTugasAkhirAllMahasiswa(w, r)
