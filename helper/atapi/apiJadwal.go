@@ -103,9 +103,8 @@ func FetchJadwalMengajar(noHp, periode string) ([]model.JadwalMengajar, error) {
 	return listJadwal, nil
 }
 
-// FetchListAbsensi retrieves the list of absensi based on the given dataID and token.
-func FetchListAbsensi(dataID, token string) ([]model.ListAbsensi, error) {
-	// URL target untuk mendapatkan data list absensi
+func FetchListAbsensi(dataID, token string) ([]model.Absensi, error) {
+	// URL target untuk mendapatkan data list nilai
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_absensi/%s", dataID)
 
 	// Buat payload berisi informasi token
@@ -113,32 +112,35 @@ func FetchListAbsensi(dataID, token string) ([]model.ListAbsensi, error) {
 		"SIAKAD_CLOUD_ACCESS": token,
 	}
 
-	// Mengirim permintaan untuk mengambil data list absensi
+	// Mengirim permintaan untuk mengambil data list nilai
 	doc, err := GetData(urlTarget, payload, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching data: %v", err)
 	}
 
-	// Ekstrak informasi dari respon
-	var listAbsensi []model.ListAbsensi
-	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
+	var listAbsensi []model.Absensi
+
+	doc.Find(".table-responsive table.dataTable tbody tr").Each(func(i int, s *goquery.Selection) {
 		pertemuan := strings.TrimSpace(s.Find("td").Eq(0).Text())
-		waktu := strings.TrimSpace(s.Find("td").Eq(1).Text())
-		materi := strings.TrimSpace(s.Find("td").Eq(2).Text())
+		tanggal := strings.TrimSpace(s.Find("td").Eq(1).Text())
+		jam := strings.TrimSpace(s.Find("td").Eq(1).Find("br").Next().Text())
+		materi := strings.TrimSpace(s.Find("td").Eq(2).Find("hr").Prev().Text())
 		pengajar := strings.TrimSpace(s.Find("td").Eq(3).Text())
 		ruang := strings.TrimSpace(s.Find("td").Eq(4).Text())
 		hadir := strings.TrimSpace(s.Find("td").Eq(5).Text())
 		persentase := strings.TrimSpace(s.Find("td").Eq(6).Text())
 
-		absensi := model.ListAbsensi{
+		absensi := model.Absensi{
 			Pertemuan:  pertemuan,
-			Waktu:      waktu,
+			Tanggal:    tanggal,
+			Jam:        jam,
 			Materi:     materi,
 			Pengajar:   pengajar,
 			Ruang:      ruang,
 			Hadir:      hadir,
 			Persentase: persentase,
 		}
+
 		listAbsensi = append(listAbsensi, absensi)
 	})
 

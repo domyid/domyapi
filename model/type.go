@@ -141,9 +141,10 @@ type JadwalMengajar struct {
 	DataID       string `json:"dataID"`
 }
 
-type ListAbsensi struct {
+type Absensi struct {
 	Pertemuan  string `json:"pertemuan"`
-	Waktu      string `json:"waktu"`
+	Tanggal    string `json:"tanggal"`
+	Jam        string `json:"jam"`
 	Materi     string `json:"materi"`
 	Pengajar   string `json:"pengajar"`
 	Ruang      string `json:"ruang"`
