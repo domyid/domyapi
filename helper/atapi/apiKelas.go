@@ -120,7 +120,7 @@ func FetchRiwayatPerkuliahan(dataID, token string) ([]model.RiwayatMengajar, err
 
 	var historyMengajar []model.RiwayatMengajar
 
-	/// Select the specific table inside the div with class 'table-responsive'
+	// Select the specific table inside the div with class 'table-responsive'
 	doc.Find(".table-responsive table.dataTable tbody tr").Each(func(i int, s *goquery.Selection) {
 		pertemuan := strings.TrimSpace(s.Find("td.text-center").Eq(0).Text())
 		tanggalJam := strings.TrimSpace(s.Find("td.text-center").Eq(1).Text())
@@ -131,8 +131,17 @@ func FetchRiwayatPerkuliahan(dataID, token string) ([]model.RiwayatMengajar, err
 			jam = strings.TrimSpace(tanggalJamSplit[1])
 		}
 
-		rencanaMateri := strings.TrimSpace(s.Find("td.word-wrap").Eq(0).Contents().Not("hr").Text())
-		realisasiMateri := strings.TrimSpace(s.Find("td.word-wrap").Eq(0).Find("hr").Next().Text())
+		rencanaMateri := ""
+		realisasiMateri := ""
+		s.Find("td.word-wrap").Eq(0).Contents().Each(func(i int, sel *goquery.Selection) {
+			if goquery.NodeName(sel) == "#text" {
+				rencanaMateri += strings.TrimSpace(sel.Text()) + " "
+			} else if goquery.NodeName(sel) == "hr" {
+				realisasiMateri = strings.TrimSpace(sel.Next().Text())
+			}
+		})
+		rencanaMateri = strings.TrimSpace(rencanaMateri)
+
 		pengajar := strings.TrimSpace(s.Find("td.word-wrap").Eq(1).Text())
 		ruang := strings.TrimSpace(s.Find("td.text-center").Eq(2).Text())
 		hadir := strings.TrimSpace(s.Find("td.text-right").Eq(0).Text())
@@ -263,7 +272,9 @@ func FetchNilai(dataID, token string) ([]model.Nilai, error) {
 		aas := strings.TrimSpace(s.Find("td").Eq(5).Text())
 		nilai := strings.TrimSpace(s.Find("td").Eq(6).Text())
 		grade := strings.TrimSpace(s.Find("td").Eq(7).Text())
-		lulus := strings.TrimSpace(s.Find("td").Eq(8).Text())
+
+		// Cek apakah ada ikon "fa-check" untuk field Lulus
+		lulus := s.Find("td").Eq(8).Find(".fa-check").Length() > 0
 		keterangan := strings.TrimSpace(s.Find("td").Eq(9).Text())
 
 		nilaiRecord := model.Nilai{

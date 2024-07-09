@@ -162,7 +162,7 @@ type Nilai struct {
 	AAS        string `json:"aas"`
 	Nilai      string `json:"nilai"`
 	Grade      string `json:"grade"`
-	Lulus      string `json:"lulus"`
+	Lulus      bool   `json:"lulus"`
 	Keterangan string `json:"keterangan"`
 }
 
