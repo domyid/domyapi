@@ -131,9 +131,9 @@ func FetchRiwayatPerkuliahan(dataID, token string) ([]model.RiwayatMengajar, err
 			jam = strings.TrimSpace(tanggalJamSplit[1])
 		}
 
-		rencanaMateri := ""
-		realisasiMateri := ""
-		s.Find("td.word-wrap").Eq(0).Contents().Each(func(i int, sel *goquery.Selection) {
+		var rencanaMateri, realisasiMateri string
+		contents := s.Find("td.word-wrap").Eq(0).Contents()
+		contents.Each(func(i int, sel *goquery.Selection) {
 			if goquery.NodeName(sel) == "#text" {
 				rencanaMateri += strings.TrimSpace(sel.Text()) + " "
 			} else if goquery.NodeName(sel) == "hr" {
@@ -277,19 +277,21 @@ func FetchNilai(dataID, token string) ([]model.Nilai, error) {
 		lulus := s.Find("td").Eq(8).Find(".fa-check").Length() > 0
 		keterangan := strings.TrimSpace(s.Find("td").Eq(9).Text())
 
-		nilaiRecord := model.Nilai{
-			No:         no,
-			NIM:        nim,
-			Nama:       nama,
-			Hadir:      hadir,
-			ATS:        ats,
-			AAS:        aas,
-			Nilai:      nilai,
-			Grade:      grade,
-			Lulus:      lulus,
-			Keterangan: keterangan,
+		if nim != "" {
+			nilaiRecord := model.Nilai{
+				No:         no,
+				NIM:        nim,
+				Nama:       nama,
+				Hadir:      hadir,
+				ATS:        ats,
+				AAS:        aas,
+				Nilai:      nilai,
+				Grade:      grade,
+				Lulus:      lulus,
+				Keterangan: keterangan,
+			}
+			listNilai = append(listNilai, nilaiRecord)
 		}
-		listNilai = append(listNilai, nilaiRecord)
 	})
 
 	return listNilai, nil
