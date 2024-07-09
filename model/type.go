@@ -188,3 +188,45 @@ type BAP struct {
 	AbsensiKelas    []Absensi         `json:"absensiKelas"`
 	ListNilai       []Nilai           `json:"listNilai"`
 }
+
+type BAPResponse struct {
+	Kode            string `json:"kode"`
+	MataKuliah      string `json:"mata_kuliah"`
+	SKS             string `json:"sks"`
+	Smt             string `json:"smt"`
+	Kelas           string `json:"kelas"`
+	RiwayatMengajar []struct {
+		Pertemuan       string `json:"pertemuan"`
+		Tanggal         string `json:"tanggal"`
+		Jam             string `json:"jam"`
+		RencanaMateri   string `json:"rencana_materi"`
+		RealisasiMateri string `json:"realisasi_materi"`
+		Pengajar        string `json:"pengajar"`
+		Ruang           string `json:"ruang"`
+		Hadir           string `json:"hadir"`
+		Persentase      string `json:"persentase"`
+	} `json:"riwayatMengajar"`
+	AbsensiKelas []struct {
+		No         string `json:"no"`
+		NIM        string `json:"nim"`
+		Nama       string `json:"nama"`
+		Pertemuan  string `json:"pertemuan"`
+		Alfa       string `json:"alfa"`
+		Hadir      string `json:"hadir"`
+		Ijin       string `json:"ijin"`
+		Sakit      string `json:"sakit"`
+		Presentase string `json:"presentase"`
+	} `json:"absensiKelas"`
+	ListNilai []struct {
+		No         string `json:"no"`
+		NIM        string `json:"nim"`
+		Nama       string `json:"nama"`
+		Hadir      string `json:"hadir"`
+		ATS        string `json:"ats"`
+		AAS        string `json:"aas"`
+		Nilai      string `json:"nilai"`
+		Grade      string `json:"grade"`
+		Lulus      bool   `json:"lulus"`
+		Keterangan string `json:"keterangan"`
+	} `json:"listNilai"`
+}

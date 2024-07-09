@@ -6,6 +6,7 @@ require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/google/go-querystring v1.1.0
+	github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5
 	go.mongodb.org/mongo-driver v1.15.1
 )
 

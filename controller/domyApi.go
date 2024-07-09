@@ -17,6 +17,7 @@ import (
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
+	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -371,7 +372,6 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listNilai)
 }
 
-// Fungsi untuk menangani permintaan HTTP untuk mendapatkan data riwayat perkuliahan, absensi kelas, dan nilai mahasiswa
 func GetBAP(w http.ResponseWriter, r *http.Request) {
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -456,8 +456,17 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		ListNilai:       listNilai,
 	}
 
-	// Return combined results as JSON response
-	at.WriteJSON(w, http.StatusOK, result)
+	// Generate PDF
+	filePath, err := pdf.GenerateBAPPDF(result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Kirimkan file PDF sebagai response
+	w.Header().Set("Content-Disposition", "attachment; filename=bap.pdf")
+	w.Header().Set("Content-Type", "application/pdf")
+	http.ServeFile(w, r, filePath)
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
