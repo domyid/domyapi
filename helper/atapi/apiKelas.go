@@ -277,7 +277,7 @@ func FetchNilai(dataID, token string) ([]model.Nilai, error) {
 		lulus := s.Find("td").Eq(8).Find(".fa-check").Length() > 0
 		keterangan := strings.TrimSpace(s.Find("td").Eq(9).Text())
 
-		if nim != "" {
+		if nim != "" && nama != "" {
 			nilaiRecord := model.Nilai{
 				No:         no,
 				NIM:        nim,
