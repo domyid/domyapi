@@ -133,14 +133,20 @@ func FetchRiwayatPerkuliahan(dataID, token string) ([]model.RiwayatMengajar, err
 
 		var rencanaMateri, realisasiMateri string
 		contents := s.Find("td.word-wrap").Eq(0).Contents()
+		var afterHR bool
 		contents.Each(func(i int, sel *goquery.Selection) {
-			if goquery.NodeName(sel) == "#text" {
-				rencanaMateri += strings.TrimSpace(sel.Text()) + " "
-			} else if goquery.NodeName(sel) == "hr" {
-				realisasiMateri = strings.TrimSpace(sel.Next().Text())
+			if goquery.NodeName(sel) == "hr" {
+				afterHR = true
+			} else if goquery.NodeName(sel) == "#text" {
+				if afterHR {
+					realisasiMateri += strings.TrimSpace(sel.Text()) + " "
+				} else {
+					rencanaMateri += strings.TrimSpace(sel.Text()) + " "
+				}
 			}
 		})
 		rencanaMateri = strings.TrimSpace(rencanaMateri)
+		realisasiMateri = strings.TrimSpace(realisasiMateri)
 
 		pengajar := strings.TrimSpace(s.Find("td.word-wrap").Eq(1).Text())
 		ruang := strings.TrimSpace(s.Find("td.text-center").Eq(2).Text())
