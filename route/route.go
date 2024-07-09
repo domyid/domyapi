@@ -29,10 +29,12 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetDosen(w, r)
 	case method == "POST" && path == "/jadwalmengajar":
 		controller.GetJadwalMengajar(w, r)
+	case method == "POST" && path == "/riwayatmengajar":
+		controller.GetRiwayatPerkuliahan(w, r)
 	case method == "POST" && path == "/absensi":
-		controller.GetListAbsensi(w, r)
+		controller.GetAbsensiKelas(w, r)
 	case method == "POST" && path == "/nilai":
-		controller.GetListNilai(w, r)
+		controller.GetNilaiMahasiswa(w, r)
 	case method == "POST" && path == "/BAP":
 		controller.GetListAbsensiDanNilai(w, r)
 	case method == "GET" && path == "/data/list/ta":

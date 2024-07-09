@@ -227,7 +227,7 @@ func GetJadwalMengajar(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listJadwal)
 }
 
-func GetListAbsensi(w http.ResponseWriter, r *http.Request) {
+func GetRiwayatPerkuliahan(w http.ResponseWriter, r *http.Request) {
 	// Mengambil nohp dari header
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -275,17 +275,45 @@ func GetListAbsensi(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch list absensi using the data ID
-	listAbsensi, err := api.FetchListAbsensi(dataID, tokenData.Token)
+	riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Return list absensi as JSON response
-	at.WriteJSON(w, http.StatusOK, listAbsensi)
+	at.WriteJSON(w, http.StatusOK, riwayatMengajar)
 }
 
-func GetListNilai(w http.ResponseWriter, r *http.Request) {
+// Fungsi untuk menangani permintaan HTTP untuk mendapatkan data absensi kelas
+func GetAbsensiKelas(w http.ResponseWriter, r *http.Request) {
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	var requestData struct {
+		Periode string `json:"periode"`
+		Kelas   string `json:"kelas"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
+		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch absensi kelas
+	absensiKelas, err := api.FetchAbsensiKelas(noHp, requestData.Kelas, requestData.Periode)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	at.WriteJSON(w, http.StatusOK, absensiKelas)
+}
+
+func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	// Mengambil nohp dari header
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -333,7 +361,7 @@ func GetListNilai(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch list nilai using the data ID
-	listNilai, err := api.FetchListNilai(dataID, tokenData.Token)
+	listNilai, err := api.FetchNilai(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -393,14 +421,14 @@ func GetListAbsensiDanNilai(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch list absensi using the data ID
-	listAbsensi, err := api.FetchListAbsensi(dataID, tokenData.Token)
+	listAbsensi, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Fetch list nilai using the data ID
-	listNilai, err := api.FetchListNilai(dataID, tokenData.Token)
+	listNilai, err := api.FetchNilai(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

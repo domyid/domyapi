@@ -103,7 +103,7 @@ func FetchJadwalMengajar(noHp, periode string) ([]model.JadwalMengajar, error) {
 	return listJadwal, nil
 }
 
-func FetchListAbsensi(dataID, token string) ([]model.Absensi, error) {
+func FetchRiwayatPerkuliahan(dataID, token string) ([]model.RiwayatMengajar, error) {
 	// URL target untuk mendapatkan data list nilai
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_absensi/%s", dataID)
 
@@ -118,7 +118,7 @@ func FetchListAbsensi(dataID, token string) ([]model.Absensi, error) {
 		return nil, fmt.Errorf("error fetching data: %v", err)
 	}
 
-	var listAbsensi []model.Absensi
+	var historyMengajar []model.RiwayatMengajar
 
 	/// Select the specific table inside the div with class 'table-responsive'
 	doc.Find(".table-responsive table.dataTable tbody tr").Each(func(i int, s *goquery.Selection) {
@@ -130,30 +130,114 @@ func FetchListAbsensi(dataID, token string) ([]model.Absensi, error) {
 		if len(tanggalJamSplit) > 1 {
 			jam = strings.TrimSpace(tanggalJamSplit[1])
 		}
-		materi := strings.TrimSpace(s.Find("td.word-wrap").Eq(0).Text())
+
+		rencanaMateri := strings.TrimSpace(s.Find("td.word-wrap").Eq(0).Contents().Not("hr").Text())
+		realisasiMateri := strings.TrimSpace(s.Find("td.word-wrap").Eq(0).Find("hr").Next().Text())
 		pengajar := strings.TrimSpace(s.Find("td.word-wrap").Eq(1).Text())
 		ruang := strings.TrimSpace(s.Find("td.text-center").Eq(2).Text())
 		hadir := strings.TrimSpace(s.Find("td.text-right").Eq(0).Text())
 		persentase := strings.TrimSpace(s.Find("td.text-right").Eq(1).Text())
 
-		absensi := model.Absensi{
-			Pertemuan:  pertemuan,
-			Tanggal:    tanggal,
-			Jam:        jam,
-			Materi:     materi,
-			Pengajar:   pengajar,
-			Ruang:      ruang,
-			Hadir:      hadir,
-			Persentase: persentase,
-		}
+		if pertemuan != "" {
+			riwayat := model.RiwayatMengajar{
+				Pertemuan:       pertemuan,
+				Tanggal:         tanggal,
+				Jam:             jam,
+				RencanaMateri:   rencanaMateri,
+				RealisasiMateri: realisasiMateri,
+				Pengajar:        pengajar,
+				Ruang:           ruang,
+				Hadir:           hadir,
+				Persentase:      persentase,
+			}
 
-		listAbsensi = append(listAbsensi, absensi)
+			historyMengajar = append(historyMengajar, riwayat)
+		}
 	})
 
-	return listAbsensi, nil
+	return historyMengajar, nil
 }
 
-func FetchListNilai(dataID, token string) ([]model.ListNilai, error) {
+func FetchAbsensiKelas(noHp, kelas, periode string) ([]model.Absensi, error) {
+	// Mengambil token dari database berdasarkan no_hp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching token: %v", err)
+	}
+
+	// Fetch jadwal mengajar
+	listJadwal, err := FetchJadwalMengajar(noHp, periode)
+	if err != nil || len(listJadwal) == 0 {
+		return nil, fmt.Errorf("error fetching data: %v", err)
+	}
+
+	// Cari data_id berdasarkan kelas
+	var dataID string
+	for _, jadwal := range listJadwal {
+		if jadwal.Kelas == kelas {
+			dataID = jadwal.DataID
+			break
+		}
+	}
+
+	if dataID == "" {
+		return nil, fmt.Errorf("error fetching data: %v", err)
+	}
+
+	// Membuat payload
+	formData := url.Values{}
+	formData.Set("idkelas", dataID)
+	formData.Set("kodeunit", "55301")
+	formData.Set("noback", "1")
+	formData.Set("iskop", "1")
+	formData.Set("isunique", "1")
+
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
+	}
+
+	// URL target
+	urlTarget := "https://siakad.ulbi.ac.id/siakad/rep_prosentaseabs"
+
+	// Mengambil data menggunakan fungsi GetDataPOST
+	doc, err := GetDataPOST(urlTarget, payload, formData, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching data: %v", err)
+	}
+
+	var mahasiswa []model.Absensi
+	doc.Find("table.tb_data.border tbody tr").Each(func(i int, s *goquery.Selection) {
+		if i > 1 { // Skip header row and "Peserta Reguler" row
+			no := strings.TrimSpace(s.Find("td").Eq(0).Text())
+			nim := strings.TrimSpace(s.Find("td").Eq(1).Text())
+			nama := strings.TrimSpace(s.Find("td").Eq(2).Text())
+			pertemuan := strings.TrimSpace(s.Find("td").Eq(3).Text())
+			alfa := strings.TrimSpace(s.Find("td").Eq(4).Text())
+			hadir := strings.TrimSpace(s.Find("td").Eq(5).Text())
+			ijin := strings.TrimSpace(s.Find("td").Eq(6).Text())
+			sakit := strings.TrimSpace(s.Find("td").Eq(7).Text())
+			presentase := strings.TrimSpace(s.Find("td").Eq(8).Text())
+
+			mahasiswaPresensi := model.Absensi{
+				No:         no,
+				NIM:        nim,
+				Nama:       nama,
+				Pertemuan:  pertemuan,
+				Alfa:       alfa,
+				Hadir:      hadir,
+				Ijin:       ijin,
+				Sakit:      sakit,
+				Presentase: presentase,
+			}
+
+			mahasiswa = append(mahasiswa, mahasiswaPresensi)
+		}
+	})
+
+	return mahasiswa, nil
+}
+
+func FetchNilai(dataID, token string) ([]model.Nilai, error) {
 	// URL target untuk mendapatkan data list nilai
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/set_nilai/%s", dataID)
 
@@ -169,7 +253,7 @@ func FetchListNilai(dataID, token string) ([]model.ListNilai, error) {
 	}
 
 	// Ekstrak informasi dari respon
-	var listNilai []model.ListNilai
+	var listNilai []model.Nilai
 	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
 		no := strings.TrimSpace(s.Find("td").Eq(0).Text())
 		nim := strings.TrimSpace(s.Find("td").Eq(1).Text())
@@ -182,7 +266,7 @@ func FetchListNilai(dataID, token string) ([]model.ListNilai, error) {
 		lulus := strings.TrimSpace(s.Find("td").Eq(8).Text())
 		keterangan := strings.TrimSpace(s.Find("td").Eq(9).Text())
 
-		nilaiRecord := model.ListNilai{
+		nilaiRecord := model.Nilai{
 			No:         no,
 			NIM:        nim,
 			Nama:       nama,
