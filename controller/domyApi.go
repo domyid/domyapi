@@ -371,6 +371,95 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listNilai)
 }
 
+// Fungsi untuk menangani permintaan HTTP untuk mendapatkan data riwayat perkuliahan, absensi kelas, dan nilai mahasiswa
+func GetBAP(w http.ResponseWriter, r *http.Request) {
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	var requestData struct {
+		Periode string `json:"periode"`
+		Kelas   string `json:"kelas"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
+		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch jadwal mengajar
+	listJadwal, err := api.FetchJadwalMengajar(noHp, requestData.Periode)
+	if err != nil || len(listJadwal) == 0 {
+		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch jadwal mengajar or no data found")
+		return
+	}
+
+	// Cari data_id berdasarkan kelas dan tambahkan informasi jadwal ke dalam hasil
+	var dataID, kode, mataKuliah, sks, smt, kelas string
+	for _, jadwal := range listJadwal {
+		if jadwal.Kelas == requestData.Kelas {
+			dataID = jadwal.DataID
+			kode = jadwal.Kode
+			mataKuliah = jadwal.MataKuliah
+			sks = jadwal.SKS
+			smt = jadwal.Smt
+			kelas = jadwal.Kelas
+			break
+		}
+	}
+
+	if dataID == "" {
+		http.Error(w, "No valid data ID found for the given class", http.StatusNotFound)
+		return
+	}
+
+	// Fetch list absensi using the data ID
+	riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch absensi kelas
+	absensiKelas, err := api.FetchAbsensiKelas(noHp, requestData.Kelas, requestData.Periode)
+	if err != nil {
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Fetch list nilai using the data ID
+	listNilai, err := api.FetchNilai(dataID, tokenData.Token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Gabungkan hasil riwayat mengajar, absensi kelas, nilai mahasiswa, dan informasi jadwal
+	result := model.BAP{
+		Kode:            kode,
+		MataKuliah:      mataKuliah,
+		SKS:             sks,
+		SMT:             smt,
+		Kelas:           kelas,
+		RiwayatMengajar: riwayatMengajar,
+		AbsensiKelas:    absensiKelas,
+		ListNilai:       listNilai,
+	}
+
+	// Return combined results as JSON response
+	at.WriteJSON(w, http.StatusOK, result)
+}
+
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil no_hp dari header
 	noHp := req.Header.Get("nohp")

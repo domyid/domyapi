@@ -145,8 +145,8 @@ type RiwayatMengajar struct {
 	Pertemuan       string `json:"pertemuan"`
 	Tanggal         string `json:"tanggal"`
 	Jam             string `json:"jam"`
-	RencanaMateri   string `json:"rencanaMateri"`
-	RealisasiMateri string `json:"realisasiMateri"`
+	RencanaMateri   string `json:"rencana_materi"`
+	RealisasiMateri string `json:"realisasi_materi"`
 	Pengajar        string `json:"pengajar"`
 	Ruang           string `json:"ruang"`
 	Hadir           string `json:"hadir"`
@@ -175,5 +175,16 @@ type Absensi struct {
 	Hadir      string `json:"hadir"`
 	Ijin       string `json:"ijin"`
 	Sakit      string `json:"sakit"`
-	Presentase string `json:"presentasse"`
+	Presentase string `json:"presentase"`
+}
+
+type BAP struct {
+	Kode            string            `json:"kode"`
+	MataKuliah      string            `json:"mata_kuliah"`
+	SKS             string            `json:"sks"`
+	SMT             string            `json:"smt"`
+	Kelas           string            `json:"kelas"`
+	RiwayatMengajar []RiwayatMengajar `json:"riwayatMengajar"`
+	AbsensiKelas    []Absensi         `json:"absensiKelas"`
+	ListNilai       []Nilai           `json:"listNilai"`
 }
