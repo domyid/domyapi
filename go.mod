@@ -5,14 +5,17 @@ go 1.21
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/PuerkitoBio/goquery v1.9.2
+	github.com/google/go-github/v59 v59.0.0
 	github.com/google/go-querystring v1.1.0
 	github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5
 	go.mongodb.org/mongo-driver v1.15.1
+	golang.org/x/oauth2 v0.11.0
 )
 
 require (
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.14.0 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.4.0 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
@@ -31,4 +34,6 @@ require (
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 )

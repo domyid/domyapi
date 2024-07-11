@@ -1,6 +1,8 @@
 package domyApi
 
 import (
+	"strings"
+
 	"github.com/jung-kurt/gofpdf"
 )
 
@@ -138,6 +140,14 @@ func ImagePdf(pdf *gofpdf.Fpdf, filename, urlimage string) *gofpdf.Fpdf {
 	}
 	pdf.ImageOptions(filename, 12, 16, 20, 10, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
 	return pdf
+}
+
+func truncateToThreeWords(s string) string {
+	words := strings.Fields(s)
+	if len(words) > 3 {
+		return strings.Join(words[:3], " ") + "..."
+	}
+	return s
 }
 
 func SavePDF(pdf *gofpdf.Fpdf, path string) error {

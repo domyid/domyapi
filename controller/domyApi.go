@@ -457,7 +457,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate PDF
-	filePath, err := pdf.CreatePDFBAP(result)
+	filePath, err := pdf.GenerateBAPPDF(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
