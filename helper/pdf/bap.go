@@ -20,9 +20,7 @@ func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	pdf.SetX(x)
 	pdf.CellFormat(70, 10, Text[1], "0", 0, "C", false, 0, "")
 	pdf.Ln(5)
-
 	pdf.SetY(20)
-
 	return pdf
 }
 
@@ -43,98 +41,78 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	pdf.Ln(10)
 
 	// Tabel Log Aktivitas
-	pdf.SetFont("Times", "B", 12)
-	pdf.CellFormat(0, 10, "Tabel Log Aktivitas", "0", 1, "C", false, 0, "")
-	pdf.Ln(5)
+	widthPertemuan := []float64{20, 30, 30, 50, 50, 40, 20, 10, 20}
+	color := []int{255, 255, 153}
+	alignPertemuan := []string{"C", "C", "C", "L", "L", "L", "C", "C", "C"}
 
+	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
 	logHeaders := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi", "Pengajar", "Ruang", "Hadir", "Persentase"}
-	widths := []float64{20, 30, 30, 60, 60, 50, 30, 20, 20}
-	align := []string{"C", "C", "C", "C", "C", "C", "C", "C", "C"}
-
-	pdf.SetFont("Times", "B", 10)
-	for i, header := range logHeaders {
-		pdf.CellFormat(widths[i], 10, header, "1", 0, align[i], false, 0, "")
-	}
-	pdf.Ln(-1)
-
-	pdf.SetFont("Times", "", 10)
+	pdf = SetHeaderTable(pdf, logHeaders, widthPertemuan, color)
 	for _, item := range data.RiwayatMengajar {
-		pdf.CellFormat(widths[0], 10, item.Pertemuan, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[1], 10, item.Tanggal, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[2], 10, item.Jam, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[3], 10, item.RencanaMateri, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[4], 10, item.RealisasiMateri, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[5], 10, item.Pengajar, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[6], 10, item.Ruang, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[7], 10, item.Hadir, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[8], 10, item.Persentase, "1", 0, "C", false, 0, "")
-		pdf.Ln(-1)
+		row := []string{
+			item.Pertemuan,
+			item.Tanggal,
+			item.Jam,
+			item.RencanaMateri,
+			truncateToThreeWords(item.RealisasiMateri),
+			item.Pengajar,
+			item.Ruang,
+			item.Hadir,
+			item.Persentase,
+		}
+		pdf = SetTableContent(pdf, [][]string{row}, widthPertemuan, alignPertemuan)
 	}
 
 	// Tabel Presensi
-	pdf.Ln(10)
-	pdf.SetFont("Times", "B", 12)
-	pdf.CellFormat(0, 10, "Tabel Presensi", "0", 1, "C", false, 0, "")
-	pdf.Ln(5)
+	widthPertemuan1 := []float64{10, 20, 40, 20, 10, 10, 10, 10, 20}
+	alignPertemuan1 := []string{"C", "C", "L", "C", "C", "C", "C", "C", "C"}
 
+	pdf.Ln(10)
+	pdf = SetMergedCell(pdf, "Tabel Presensi", "J", 150, color)
 	presensiHeaders := []string{"No", "NIM", "Nama", "Pertemuan", "Alfa", "Hadir", "Ijin", "Sakit", "Presentase"}
-	widthsPresensi := []float64{10, 20, 40, 20, 10, 10, 10, 10, 20}
-	alignPresensi := []string{"C", "C", "L", "C", "C", "C", "C", "C", "C"}
-
-	pdf.SetFont("Times", "B", 10)
-	for i, header := range presensiHeaders {
-		pdf.CellFormat(widthsPresensi[i], 10, header, "1", 0, alignPresensi[i], false, 0, "")
-	}
-	pdf.Ln(-1)
-
-	pdf.SetFont("Times", "", 10)
+	pdf = SetHeaderTable(pdf, presensiHeaders, widthPertemuan1, color)
 	for _, item := range data.AbsensiKelas {
-		pdf.CellFormat(widthsPresensi[0], 10, item.No, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsPresensi[1], 10, item.NIM, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsPresensi[2], 10, item.Nama, "1", 0, "L", false, 0, "")
-		pdf.CellFormat(widthsPresensi[3], 10, item.Pertemuan, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsPresensi[4], 10, item.Alfa, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsPresensi[5], 10, item.Hadir, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsPresensi[6], 10, item.Ijin, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsPresensi[7], 10, item.Sakit, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsPresensi[8], 10, item.Presentase, "1", 0, "C", false, 0, "")
-		pdf.Ln(-1)
+		row := []string{
+			item.No,
+			item.NIM,
+			item.Nama,
+			item.Pertemuan,
+			item.Alfa,
+			item.Hadir,
+			item.Ijin,
+			item.Sakit,
+			item.Presentase,
+		}
+		pdf = SetTableContent(pdf, [][]string{row}, widthPertemuan1, alignPertemuan1)
 	}
 
-	// Tabel Nilai Akhir
+	// Tabel Nilai
+	widthPertemuan2 := []float64{10, 20, 40, 20, 20, 20, 20, 10, 10, 20}
+	alignPertemuan2 := []string{"C", "C", "L", "C", "C", "C", "C", "C", "C", "L"}
+
 	pdf.Ln(10)
-	pdf.SetFont("Times", "B", 12)
-	pdf.CellFormat(0, 10, "Tabel Nilai Akhir", "0", 1, "C", false, 0, "")
-	pdf.Ln(5)
-
+	pdf = SetMergedCell(pdf, "Tabel Nilai", "J", 150, color)
 	nilaiHeaders := []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade", "Lulus", "Keterangan"}
-	widthsNilai := []float64{10, 20, 40, 20, 20, 20, 20, 10, 10, 20}
-	alignNilai := []string{"C", "C", "L", "C", "C", "C", "C", "C", "C", "L"}
-
-	pdf.SetFont("Times", "B", 10)
-	for i, header := range nilaiHeaders {
-		pdf.CellFormat(widthsNilai[i], 10, header, "1", 0, alignNilai[i], false, 0, "")
-	}
-	pdf.Ln(-1)
-
-	pdf.SetFont("Times", "", 10)
+	pdf = SetHeaderTable(pdf, nilaiHeaders, widthPertemuan2, color)
 	for _, item := range data.ListNilai {
 		hadir, _ := strconv.ParseFloat(item.Hadir, 64)
 		ats, _ := strconv.ParseFloat(item.ATS, 64)
 		aas, _ := strconv.ParseFloat(item.AAS, 64)
 		nilai, _ := strconv.ParseFloat(item.Nilai, 64)
 
-		pdf.CellFormat(widthsNilai[0], 10, item.No, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[1], 10, item.NIM, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[2], 10, item.Nama, "1", 0, "L", false, 0, "")
-		pdf.CellFormat(widthsNilai[3], 10, fmt.Sprintf("%.2f", hadir), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[4], 10, fmt.Sprintf("%.2f", ats), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[5], 10, fmt.Sprintf("%.2f", aas), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[6], 10, fmt.Sprintf("%.2f", nilai), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[7], 10, item.Grade, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[8], 10, fmt.Sprintf("%t", item.Lulus), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widthsNilai[9], 10, item.Keterangan, "1", 0, "L", false, 0, "")
-		pdf.Ln(-1)
+		row := []string{
+			item.No,
+			item.NIM,
+			item.Nama,
+			fmt.Sprintf("%.2f", hadir),
+			fmt.Sprintf("%.2f", ats),
+			fmt.Sprintf("%.2f", aas),
+			fmt.Sprintf("%.2f", nilai),
+			item.Grade,
+			fmt.Sprintf("%t", item.Lulus),
+			item.Keterangan,
+		}
+		pdf = SetTableContent(pdf, [][]string{row}, widthPertemuan2, alignPertemuan2)
 	}
 
 	// Save the PDF to a file
