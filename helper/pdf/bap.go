@@ -10,17 +10,19 @@ import (
 
 const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
 
-func CreateHeaderBAP(pdf *gofpdf.Fpdf, text []string, x float64) *gofpdf.Fpdf {
+func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
+	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 	pdf.SetFont("Times", "B", 12)
 	pdf.SetX(x)
-	pdf.CellFormat(70, 10, text[0], "0", 0, "C", false, 0, "")
+	pdf.CellFormat(70, 10, Text[0], "0", 0, "C", false, 0, "")
 	pdf.Ln(5)
 	pdf.SetX(x)
-	pdf.CellFormat(70, 10, text[1], "0", 0, "C", false, 0, "")
-	pdf.Ln(10)
-	pdf.ImageOptions("./ulbi.png", x-50, 10, 30, 0, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
-	pdf.Ln(20)
+	pdf.CellFormat(70, 10, Text[1], "0", 0, "C", false, 0, "")
+	pdf.Ln(5)
+
+	pdf.SetY(20)
+
 	return pdf
 }
 
@@ -30,8 +32,8 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
 	}
 
-	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf = CreateHeaderBAP(pdf, Text, 90)
+	pdf := CreateHeaderBAP(Text, 90)
+	pdf = ImageCustomize(pdf, "./ulbi.png", InfoImageURL, 28, 11, 35, 12, 100, 100, 0.3)
 
 	// Header Information
 	pdf.SetFont("Times", "", 12)
