@@ -57,16 +57,14 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	align = []string{"C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.RiwayatMengajar {
-		pdf.CellFormat(widths[0], 10, item.Pertemuan, "1", 0, align[0], false, 0, "")
-		pdf.CellFormat(widths[1], 10, item.Tanggal, "1", 0, align[1], false, 0, "")
-		pdf.CellFormat(widths[2], 10, item.Jam, "1", 0, align[2], false, 0, "")
-		// Use MultiCell for "Rencana Materi" and "Realisasi Materi"
-		x := pdf.GetX()
-		y := pdf.GetY()
-		pdf.MultiCell(widths[3], 10, item.RencanaMateri, "1", align[3], false)
-		pdf.SetXY(x+widths[3], y)
-		pdf.MultiCell(widths[4], 10, item.RealisasiMateri, "1", align[4], false)
-		pdf.Ln(-1)
+		row := []string{
+			item.Pertemuan,
+			item.Tanggal,
+			item.Jam,
+			truncateToThreeWords(item.RencanaMateri),
+			truncateToThreeWords(item.RealisasiMateri),
+		}
+		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
 	// Add Absensi Kelas table

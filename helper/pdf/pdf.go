@@ -1,6 +1,8 @@
 package domyApi
 
 import (
+	"strings"
+
 	"github.com/jung-kurt/gofpdf"
 )
 
@@ -140,28 +142,13 @@ func ImagePdf(pdf *gofpdf.Fpdf, filename, urlimage string) *gofpdf.Fpdf {
 	return pdf
 }
 
-// func wrapTextToLines(pdf *gofpdf.Fpdf, text string, width float64) {
-// 	words := strings.Fields(text)
-// 	line := ""
-// 	for _, word := range words {
-// 		testLine := line + word + " "
-// 		if pdf.GetStringWidth(testLine) > width {
-// 			pdf.MultiCell(width, 10, line, "", "", false)
-// 			line = word + " "
-// 		} else {
-// 			line = testLine
-// 		}
-// 	}
-// 	pdf.MultiCell(width, 10, line, "", "", false)
-// }
-
-// func truncateToThreeWords(s string) string {
-// 	words := strings.Fields(s)
-// 	if len(words) > 3 {
-// 		return strings.Join(words[:3], " ") + "..."
-// 	}
-// 	return s
-// }
+func truncateToThreeWords(s string) string {
+	words := strings.Fields(s)
+	if len(words) > 3 {
+		return strings.Join(words[:3], " ") + "..."
+	}
+	return s
+}
 
 func SavePDF(pdf *gofpdf.Fpdf, path string) error {
 	return pdf.OutputFileAndClose(path)
