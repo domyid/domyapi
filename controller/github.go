@@ -87,7 +87,7 @@ func PostUploadGithub(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, _, err := ghupload.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, header, "alittifaq", "cdn", pathFile, false)
+	content, _, err := ghupload.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, header, "repoulbi", "buktiajar", pathFile, false)
 	if err != nil {
 		respn.Info = "gagal upload github"
 		respn.Response = err.Error()

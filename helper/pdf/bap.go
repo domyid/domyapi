@@ -53,18 +53,20 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	pdf.Ln(5)
 	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
 	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi"}
-	widths := []float64{20, 24, 25, 40, 40}
+	widths := []float64{18, 25, 22, 40, 40}
 	align = []string{"C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.RiwayatMengajar {
-		row := []string{
-			item.Pertemuan,
-			item.Tanggal,
-			item.Jam,
-			truncateToThreeWords(item.RencanaMateri),
-			item.RealisasiMateri,
-		}
-		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
+		pdf.CellFormat(widths[0], 10, item.Pertemuan, "1", 0, align[0], false, 0, "")
+		pdf.CellFormat(widths[1], 10, item.Tanggal, "1", 0, align[1], false, 0, "")
+		pdf.CellFormat(widths[2], 10, item.Jam, "1", 0, align[2], false, 0, "")
+		// Use MultiCell for "Rencana Materi" and "Realisasi Materi"
+		x := pdf.GetX()
+		y := pdf.GetY()
+		pdf.MultiCell(widths[3], 10, item.RencanaMateri, "1", align[3], false)
+		pdf.SetXY(x+widths[3], y)
+		pdf.MultiCell(widths[4], 10, item.RealisasiMateri, "1", align[4], false)
+		pdf.Ln(-1)
 	}
 
 	// Add Absensi Kelas table
@@ -93,7 +95,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	pdf.Ln(10)
 	pdf = SetMergedCell(pdf, "Tabel Nilai Akhir", "J", 150, color)
 	headers = []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade"}
-	widths = []float64{10, 20, 40, 15, 15, 15, 15, 10}
+	widths = []float64{10, 20, 40, 15, 15, 15, 15, 20}
 	align = []string{"C", "C", "L", "C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.ListNilai {
