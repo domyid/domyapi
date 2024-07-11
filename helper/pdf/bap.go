@@ -53,8 +53,8 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	pdf.Ln(5)
 	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
 	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi"}
-	widths := []float64{20, 30, 30, 50, 50, 40, 20, 10, 20}
-	alignPertemuan := []string{"C", "C", "C", "L", "L", "L", "C", "C", "C"}
+	widths := []float64{10, 20, 40, 20, 10, 10, 10, 10, 20}
+	align = []string{"C", "C", "L", "C", "C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.RiwayatMengajar {
 		row := []string{
@@ -64,7 +64,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 			item.RencanaMateri,
 			truncateToThreeWords(item.RealisasiMateri),
 		}
-		pdf = SetTableContent(pdf, [][]string{row}, widths, alignPertemuan)
+		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
 	// Add Absensi Kelas table
