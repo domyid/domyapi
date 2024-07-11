@@ -53,7 +53,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	pdf.Ln(5)
 	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
 	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi"}
-	widths := []float64{20, 20, 15, 50, 50}
+	widths := []float64{20, 24, 25, 40, 40}
 	align = []string{"C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.RiwayatMengajar {
@@ -61,8 +61,8 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 			item.Pertemuan,
 			item.Tanggal,
 			item.Jam,
-			item.RencanaMateri,
-			truncateToThreeWords(item.RealisasiMateri),
+			truncateToThreeWords(item.RencanaMateri),
+			item.RealisasiMateri,
 		}
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
@@ -93,7 +93,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	pdf.Ln(10)
 	pdf = SetMergedCell(pdf, "Tabel Nilai Akhir", "J", 150, color)
 	headers = []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade"}
-	widths = []float64{10, 20, 40, 20, 20, 20, 20, 10}
+	widths = []float64{10, 20, 40, 15, 15, 15, 15, 10}
 	align = []string{"C", "C", "L", "C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.ListNilai {
