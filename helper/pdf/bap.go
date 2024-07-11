@@ -26,40 +26,19 @@ func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	return pdf
 }
 
-// Fungsi untuk membuat PDF dari data BAP
-func GenerateBAPPDF(data model.BAP) (string, error) {
+func CreatePDFBAP(data model.BAP) (string, error) {
 	Text := []string{
 		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
 		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
 	}
 
-	head := []string{
-		"Kode Matakuliah/Nama Matakuliah   ",
-		"Kelas  ",
-		"Semester/SKS  ",
-	}
-
-	sep := []string{
-		":",
-		":",
-		":",
-	}
-
-	Value := []string{
-		fmt.Sprintf("%s/%s", data.Kode, data.MataKuliah),
-		data.Kelas,
-		fmt.Sprintf("%s/%s SKS", data.SMT, data.SKS),
-	}
-
 	pdf := CreateHeaderBAP(Text, 90)
 	pdf = ImageCustomize(pdf, "./ulbi.png", InfoImageURL, 28, 11, 35, 12, 100, 100, 0.3)
 
-	// Add details to PDF
-	for i := range Value {
-		pdf.CellFormat(60, 10, head[i], "", 0, "", false, 0, "")
-		pdf.CellFormat(5, 10, sep[i], "", 0, "", false, 0, "")
-		pdf.CellFormat(70, 10, Value[i], "", 1, "", false, 0, "")
-	}
+	// Header Information
+	pdf.CellFormat(0, 10, fmt.Sprintf("Kode Matakuliah/Nama Matakuliah: %s/%s", data.Kode, data.MataKuliah), "", 1, "", false, 0, "")
+	pdf.CellFormat(0, 10, fmt.Sprintf("Kelas: %s", data.Kelas), "", 1, "", false, 0, "")
+	pdf.CellFormat(0, 10, fmt.Sprintf("Semester/SKS: %s/%s SKS", data.SMT, data.SKS), "", 1, "", false, 0, "")
 
 	// Add Riwayat Mengajar table
 	pdf.Ln(10)
