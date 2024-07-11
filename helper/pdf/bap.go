@@ -10,6 +10,7 @@ import (
 
 const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
 
+// CreateHeaderBAP generates the header for the BAP PDF
 func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
@@ -24,30 +25,41 @@ func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	return pdf
 }
 
+// GenerateBAPPDF generates the BAP PDF
 func GenerateBAPPDF(data model.BAP) (string, error) {
 	Text := []string{
 		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
 		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
 	}
 
+	width := []float64{60, 5, 70}
+	color := []int{255, 255, 153}
+	align := []string{"J", "C", "J"}
+
 	pdf := CreateHeaderBAP(Text, 90)
 	pdf = ImageCustomize(pdf, "./ulbi.png", InfoImageURL, 28, 11, 35, 12, 100, 100, 0.3)
 
 	// Header Information
-	pdf.SetFont("Times", "", 12)
-	pdf.CellFormat(0, 10, fmt.Sprintf("Kode Matakuliah/Nama Matakuliah: %s/%s", data.Kode, data.MataKuliah), "", 1, "", false, 0, "")
-	pdf.CellFormat(0, 10, fmt.Sprintf("Kelas: %s", data.Kelas), "", 1, "", false, 0, "")
-	pdf.CellFormat(0, 10, fmt.Sprintf("Semester/SKS: %s/%s SKS", data.SMT, data.SKS), "", 1, "", false, 0, "")
+	headerInfo := [][]string{
+		{"Kode Matakuliah/Nama Matakuliah", ":", fmt.Sprintf("%s/%s", data.Kode, data.MataKuliah)},
+		{"Kelas", ":", data.Kelas},
+		{"Semester/SKS", ":", fmt.Sprintf("%s/%s SKS", data.SMT, data.SKS)},
+	}
+
+	for _, row := range headerInfo {
+		for i, col := range row {
+			pdf.CellFormat(width[i], 10, col, "", 0, align[i], false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
+
+	// Add Riwayat Mengajar table
 	pdf.Ln(10)
-
-	// Tabel Log Aktivitas
-	widthPertemuan := []float64{20, 30, 30, 50, 50, 40, 20, 10, 20}
-	color := []int{255, 255, 153}
-	alignPertemuan := []string{"C", "C", "C", "L", "L", "L", "C", "C", "C"}
-
 	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
-	logHeaders := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi", "Pengajar", "Ruang", "Hadir", "Persentase"}
-	pdf = SetHeaderTable(pdf, logHeaders, widthPertemuan, color)
+	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi", "Pengajar", "Ruang", "Hadir", "Persentase"}
+	widths := []float64{20, 30, 30, 50, 50, 40, 20, 10, 20}
+	alignPertemuan := []string{"C", "C", "C", "L", "L", "L", "C", "C", "C"}
+	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.RiwayatMengajar {
 		row := []string{
 			item.Pertemuan,
@@ -60,17 +72,16 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 			item.Hadir,
 			item.Persentase,
 		}
-		pdf = SetTableContent(pdf, [][]string{row}, widthPertemuan, alignPertemuan)
+		pdf = SetTableContent(pdf, [][]string{row}, widths, alignPertemuan)
 	}
 
-	// Tabel Presensi
-	widthPertemuan1 := []float64{10, 20, 40, 20, 10, 10, 10, 10, 20}
-	alignPertemuan1 := []string{"C", "C", "L", "C", "C", "C", "C", "C", "C"}
-
+	// Add Absensi Kelas table
 	pdf.Ln(10)
 	pdf = SetMergedCell(pdf, "Tabel Presensi", "J", 150, color)
-	presensiHeaders := []string{"No", "NIM", "Nama", "Pertemuan", "Alfa", "Hadir", "Ijin", "Sakit", "Presentase"}
-	pdf = SetHeaderTable(pdf, presensiHeaders, widthPertemuan1, color)
+	headers = []string{"No", "NIM", "Nama", "Pertemuan", "Alfa", "Hadir", "Ijin", "Sakit", "Presentase"}
+	widths = []float64{10, 20, 40, 20, 10, 10, 10, 10, 20}
+	align = []string{"C", "C", "L", "C", "C", "C", "C", "C", "C"}
+	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.AbsensiKelas {
 		row := []string{
 			item.No,
@@ -83,17 +94,16 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 			item.Sakit,
 			item.Presentase,
 		}
-		pdf = SetTableContent(pdf, [][]string{row}, widthPertemuan1, alignPertemuan1)
+		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
-	// Tabel Nilai
-	widthPertemuan2 := []float64{10, 20, 40, 20, 20, 20, 20, 10, 10, 20}
-	alignPertemuan2 := []string{"C", "C", "L", "C", "C", "C", "C", "C", "C", "L"}
-
+	// Add List Nilai table
 	pdf.Ln(10)
-	pdf = SetMergedCell(pdf, "Tabel Nilai", "J", 150, color)
-	nilaiHeaders := []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade", "Lulus", "Keterangan"}
-	pdf = SetHeaderTable(pdf, nilaiHeaders, widthPertemuan2, color)
+	pdf = SetMergedCell(pdf, "Tabel Nilai Akhir", "J", 150, color)
+	headers = []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade", "Lulus", "Keterangan"}
+	widths = []float64{10, 20, 40, 20, 20, 20, 20, 10, 10, 20}
+	align = []string{"C", "C", "L", "C", "C", "C", "C", "C", "C", "C"}
+	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.ListNilai {
 		hadir, _ := strconv.ParseFloat(item.Hadir, 64)
 		ats, _ := strconv.ParseFloat(item.ATS, 64)
@@ -112,7 +122,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 			fmt.Sprintf("%t", item.Lulus),
 			item.Keterangan,
 		}
-		pdf = SetTableContent(pdf, [][]string{row}, widthPertemuan2, alignPertemuan2)
+		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
 	// Save the PDF to a file
