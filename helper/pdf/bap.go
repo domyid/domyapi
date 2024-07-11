@@ -35,6 +35,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	width := []float64{60, 5, 70}
 	color := []int{255, 255, 153}
 	align := []string{"J", "C", "J"}
+	yCoordinates := []float64{40, 45, 50}
 
 	pdf := CreateHeaderBAP(Text, 90)
 	pdf = ImageCustomize(pdf, "./ulbi.png", InfoImageURL, 28, 11, 35, 12, 100, 100, 0.3)
@@ -46,17 +47,12 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 		{"Semester/SKS", ":", fmt.Sprintf("%s/%s SKS", data.SMT, data.SKS)},
 	}
 
-	for _, row := range headerInfo {
-		for i, col := range row {
-			pdf.CellFormat(width[i], 10, col, "", 0, align[i], false, 0, "")
-		}
-		pdf.Ln(-1)
-	}
+	pdf = SetTableContentCustomY(pdf, headerInfo, width, align, yCoordinates)
 
 	// Add Riwayat Mengajar table
-	pdf.Ln(10)
+	pdf.Ln(5)
 	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
-	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi", "Pengajar", "Ruang", "Hadir", "Persentase"}
+	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi"}
 	widths := []float64{20, 30, 30, 50, 50, 40, 20, 10, 20}
 	alignPertemuan := []string{"C", "C", "C", "L", "L", "L", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
@@ -67,10 +63,6 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 			item.Jam,
 			item.RencanaMateri,
 			truncateToThreeWords(item.RealisasiMateri),
-			item.Pengajar,
-			item.Ruang,
-			item.Hadir,
-			item.Persentase,
 		}
 		pdf = SetTableContent(pdf, [][]string{row}, widths, alignPertemuan)
 	}
@@ -100,7 +92,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	// Add List Nilai table
 	pdf.Ln(10)
 	pdf = SetMergedCell(pdf, "Tabel Nilai Akhir", "J", 150, color)
-	headers = []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade", "Lulus", "Keterangan"}
+	headers = []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade"}
 	widths = []float64{10, 20, 40, 20, 20, 20, 20, 10, 10, 20}
 	align = []string{"C", "C", "L", "C", "C", "C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
@@ -119,8 +111,6 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 			fmt.Sprintf("%.2f", aas),
 			fmt.Sprintf("%.2f", nilai),
 			item.Grade,
-			fmt.Sprintf("%t", item.Lulus),
-			item.Keterangan,
 		}
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
