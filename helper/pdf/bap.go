@@ -53,7 +53,7 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 	pdf.Ln(5)
 	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
 	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi"}
-	widths := []float64{18, 25, 22, 40, 40}
+	widths := []float64{18, 25, 22, 45, 45}
 	align = []string{"C", "C", "C", "C", "C"}
 	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
 	for _, item := range data.RiwayatMengajar {
