@@ -462,6 +462,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate PDF
+	// Generate PDF
 	fileName, err := pdf.GenerateBAPPDF(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -508,7 +509,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		"repoulbi",
 		"buktiajar",
 		filepath.Join("2023-2", fileHeader.Filename),
-		false,
+		false, // Menambahkan argumen boolean untuk `replace`
 	)
 	if err != nil {
 		fmt.Println("Error Uploading to GitHub:", err) // Log the error
