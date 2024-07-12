@@ -10,7 +10,6 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -469,6 +468,18 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Open the generated PDF file
+	fileHeader := multipart.FileHeader{
+		Filename: filepath.Base(fileName),
+		Header:   textproto.MIMEHeader{},
+	}
+	file, err := os.Open(fileName)
+	if err != nil {
+		http.Error(w, "Failed to open generated PDF file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
 	// Fetch GitHub credentials from database
 	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
 	if err != nil {
@@ -476,36 +487,27 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Open the generated PDF file
-	fileHeader := multipart.FileHeader{
-		Filename: filepath.Base(fileName),
-		Header:   textproto.MIMEHeader{},
-	}
-
-	file, err := os.Open(fileName)
-	if err != nil {
-		http.Error(w, "Failed to open generated PDF file", http.StatusInternalServerError)
-		return
-	}
-	fileInfo, err := file.Stat()
-	if err != nil {
-		http.Error(w, "Failed to stat generated PDF file", http.StatusInternalServerError)
-		return
-	}
-	fileHeader.Size = fileInfo.Size()
-
-	// Upload the file to GitHub
-	content, _, err := github.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, &fileHeader, "repoulbi", "buktiajar", path.Join("2023-2", fileHeader.Filename), false)
+	// Upload to GitHub
+	content, _, err := github.GithubUpload(
+		gh.GitHubAccessToken,
+		gh.GitHubAuthorName,
+		gh.GitHubAuthorEmail,
+		&fileHeader,
+		"repoulbi",
+		"buktiajar",
+		filepath.Join("2023-2", fileHeader.Filename),
+		false, // Menambahkan argumen boolean untuk `replace`
+	)
 	if err != nil {
 		http.Error(w, "Failed to upload PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Create the PDF viewer URL
-	pdfViewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", content.Content.GetDownloadURL())
+	// Create viewer URL
+	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", *content.Content.Path)
 
-	// Send the PDF viewer URL as the response
-	http.Redirect(w, r, pdfViewerURL, http.StatusFound)
+	// Send the viewer URL as the response
+	http.Redirect(w, r, viewerURL, http.StatusFound)
 
 }
 
