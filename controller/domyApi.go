@@ -468,38 +468,29 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Membuka file PDF yang dihasilkan
-	file, err := os.Open(filePath)
-	if err != nil {
-		http.Error(w, "Failed to open generated PDF file", http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
-
-	// Membuat file header untuk unggah ke GitHub
-	fileHeader := multipart.FileHeader{
-		Filename: filepath.Base(filePath),
-		Header:   make(textproto.MIMEHeader),
-	}
-
-	// Mengambil informasi GitHub dari database atau konfigurasi
+	// Upload PDF ke GitHub
 	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
 	if err != nil {
+		fmt.Println("Failed to fetch GitHub credentials from database")
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
 
-	// Mengunggah PDF ke GitHub
-	pathFile := filepath.Join("2023-2", fileHeader.Filename)
-	content, _, err := github.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, &fileHeader, "repoulbi", "buktiajar", pathFile, false)
+	fileHeader := multipart.FileHeader{
+		Filename: filePath,
+		Size:     int64(len(filePath)),
+		Header:   textproto.MIMEHeader{},
+	}
+
+	content, _, err := github.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, &fileHeader, "repoulbi", "buktiajar", filepath.Join("2023-2", fileHeader.Filename), true)
 	if err != nil {
 		http.Error(w, "Failed to upload PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Mengirimkan URL penampil PDF sebagai respon
-	pdfViewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", content.GetContent().GetPath())
-	http.Redirect(w, r, pdfViewerURL, http.StatusFound)
+	pdfURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", *content.Content.Path)
+	http.Redirect(w, r, pdfURL, http.StatusFound)
 
 }
 
