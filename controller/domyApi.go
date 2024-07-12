@@ -468,6 +468,12 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the file exists before trying to open it
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		http.Error(w, "Generated PDF file does not exist", http.StatusInternalServerError)
+		return
+	}
+
 	// Open the generated PDF file
 	fileHeader := multipart.FileHeader{
 		Filename: filepath.Base(fileName),
