@@ -468,7 +468,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the file exists before trying to open it
+	// Ensure the file exists
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		http.Error(w, "Generated PDF file does not exist", http.StatusInternalServerError)
 		return
@@ -483,7 +483,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	// Create a new FileHeader
-	fileHeader := multipart.FileHeader{
+	fileHeader := &multipart.FileHeader{
 		Filename: filepath.Base(fileName),
 		Header:   textproto.MIMEHeader{},
 		Size:     getFileSize(file),
@@ -497,7 +497,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save to GitHub
-	content, _, err := github.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, &fileHeader, "repoulbi", "buktiajar", filepath.Join("2023-2", fileHeader.Filename), false)
+	content, _, err := github.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, fileHeader, "repoulbi", "buktiajar", filepath.Join("2023-2", fileHeader.Filename), false)
 	if err != nil {
 		http.Error(w, "Failed to upload PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
 		return
