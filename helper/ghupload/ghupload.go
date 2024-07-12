@@ -32,7 +32,7 @@ func GithubListFiles(GitHubAccessToken, githubOrg, githubRepo, path string) ([]*
 	return directoryContent, nil
 }
 
-// Fungsi untuk mengunggah file ke GitHub
+// Fungsi untuk upload ke GitHub
 func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string, fileHeader *multipart.FileHeader, githubOrg string, githubRepo string, pathFile string, replace bool) (content *github.RepositoryContentResponse, response *github.Response, err error) {
 	// Open the file
 	file, err := fileHeader.Open()
@@ -40,6 +40,7 @@ func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string,
 		return
 	}
 	defer file.Close()
+
 	// Read the file content
 	fileContent, err := io.ReadAll(file)
 	if err != nil {
@@ -67,11 +68,10 @@ func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string,
 
 	// Membuat permintaan untuk mengunggah file
 	content, response, err = client.Repositories.CreateFile(ctx, githubOrg, githubRepo, pathFile, opts)
-	if (err != nil) && (replace) {
+	if (err != nil) && replace {
 		currentContent, _, _, _ := client.Repositories.GetContents(ctx, githubOrg, githubRepo, pathFile, nil)
 		opts.SHA = github.String(currentContent.GetSHA())
 		content, response, err = client.Repositories.UpdateFile(ctx, githubOrg, githubRepo, pathFile, opts)
-		return
 	}
 
 	return
