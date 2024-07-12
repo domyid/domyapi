@@ -115,8 +115,9 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
-	// Save the PDF to a file
-	filePath := "bap.pdf"
+	// Save the PDF to a file with dynamic filename
+	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
+	filePath := fileName
 	err := SavePDF(pdf, filePath)
 	if err != nil {
 		return "", err

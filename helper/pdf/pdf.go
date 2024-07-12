@@ -1,6 +1,7 @@
 package domyApi
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
@@ -140,6 +141,14 @@ func ImagePdf(pdf *gofpdf.Fpdf, filename, urlimage string) *gofpdf.Fpdf {
 	}
 	pdf.ImageOptions(filename, 12, 16, 20, 10, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
 	return pdf
+}
+
+// sanitizeFileName replaces any invalid filename characters with an underscore
+func sanitizeFileName(name string) string {
+	// Define a regex pattern for invalid filename characters
+	reg := regexp.MustCompile(`[<>:"/\\|?*]`)
+	// Replace invalid characters with an underscore
+	return reg.ReplaceAllString(strings.TrimSpace(name), "_")
 }
 
 func truncateToThreeWords(s string) string {

@@ -32,6 +32,7 @@ func GithubListFiles(GitHubAccessToken, githubOrg, githubRepo, path string) ([]*
 	return directoryContent, nil
 }
 
+// Fungsi untuk mengunggah file ke GitHub
 func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string, fileHeader *multipart.FileHeader, githubOrg string, githubRepo string, pathFile string, replace bool) (content *github.RepositoryContentResponse, response *github.Response, err error) {
 	// Open the file
 	file, err := fileHeader.Open()

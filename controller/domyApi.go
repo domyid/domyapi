@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -17,8 +19,10 @@ import (
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
+	github "github.com/domyid/domyapi/helper/ghupload"
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -372,6 +376,7 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listNilai)
 }
 
+// Fungsi utama untuk mendapatkan BAP dan mengunggah ke GitHub
 func GetBAP(w http.ResponseWriter, r *http.Request) {
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -463,10 +468,39 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Kirimkan file PDF sebagai response
-	w.Header().Set("Content-Disposition", "attachment; filename=bap.pdf")
-	w.Header().Set("Content-Type", "application/pdf")
-	http.ServeFile(w, r, filePath)
+	// Membuka file PDF yang dihasilkan
+	file, err := os.Open(filePath)
+	if err != nil {
+		http.Error(w, "Failed to open generated PDF file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	// Membuat file header untuk unggah ke GitHub
+	fileHeader := multipart.FileHeader{
+		Filename: filepath.Base(filePath),
+		Header:   make(textproto.MIMEHeader),
+	}
+
+	// Mengambil informasi GitHub dari database atau konfigurasi
+	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
+	if err != nil {
+		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
+		return
+	}
+
+	// Mengunggah PDF ke GitHub
+	pathFile := filepath.Join("2023-2", fileHeader.Filename)
+	content, _, err := github.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, &fileHeader, "repoulbi", "buktiajar", pathFile, false)
+	if err != nil {
+		http.Error(w, "Failed to upload PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Mengirimkan URL penampil PDF sebagai respon
+	pdfViewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", content.GetContent().GetPath())
+	http.Redirect(w, r, pdfViewerURL, http.StatusFound)
+
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
