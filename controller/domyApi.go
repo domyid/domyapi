@@ -488,12 +488,16 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	fmt.Printf("Opening generated PDF file: %s\n", fileName) // Log the file open action
+
 	// Fetch GitHub credentials from database
 	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
 	if err != nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
+
+	fmt.Println("GitHub credentials fetched successfully") // Log successful fetch
 
 	// Upload to GitHub
 	content, _, err := github.GithubUpload(
@@ -504,12 +508,15 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		"repoulbi",
 		"buktiajar",
 		filepath.Join("2023-2", fileHeader.Filename),
-		false, // Menambahkan argumen boolean untuk `replace`
+		false,
 	)
 	if err != nil {
+		fmt.Println("Error Uploading to GitHub:", err) // Log the error
 		http.Error(w, "Failed to upload PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	fmt.Println("File uploaded to GitHub successfully") // Log successful upload
 
 	// Create viewer URL
 	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", *content.Content.Path)

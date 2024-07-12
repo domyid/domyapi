@@ -3,7 +3,6 @@ package domyApi
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	model "github.com/domyid/domyapi/model"
@@ -119,24 +118,18 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 
 	// Save the PDF to a file with dynamic filename
 	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
-	filePath := filepath.Join("pdfs", fileName)
 
-	// Ensure the directory exists
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		return "", err
-	}
-
-	err := SavePDF(pdf, filePath)
+	err := SavePDF(pdf, fileName)
 	if err != nil {
 		return "", err
 	}
 
 	// Check if the file exists
-	_, err = os.Stat(filePath)
+	_, err = os.Stat(fileName)
 	if os.IsNotExist(err) {
-		return "", fmt.Errorf("file %s does not exist", filePath)
+		return "", fmt.Errorf("file %s does not exist", fileName)
 	}
 
-	fmt.Printf("File successfully saved at %s\n", filePath)
-	return filePath, nil
+	fmt.Printf("File successfully saved at %s\n", fileName)
+	return fileName, nil
 }
