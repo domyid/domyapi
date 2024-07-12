@@ -462,7 +462,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate PDF
-	// Generate PDF
 	fileName, err := pdf.GenerateBAPPDF(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -478,16 +477,19 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Open the generated PDF file
-	fileHeader := multipart.FileHeader{
-		Filename: filepath.Base(fileName),
-		Header:   textproto.MIMEHeader{},
-	}
 	file, err := os.Open(fileName)
 	if err != nil {
 		http.Error(w, "Failed to open generated PDF file", http.StatusInternalServerError)
 		return
 	}
 	defer file.Close()
+
+	// Create a new FileHeader
+	fileHeader := multipart.FileHeader{
+		Filename: filepath.Base(fileName),
+		Header:   textproto.MIMEHeader{},
+		Size:     getFileSize(file),
+	}
 
 	fmt.Printf("Opening generated PDF file: %s\n", fileName) // Log the file open action
 
@@ -524,7 +526,15 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	// Send the viewer URL as the response
 	http.Redirect(w, r, viewerURL, http.StatusFound)
+}
 
+// Utility function to get the size of the file
+func getFileSize(file *os.File) int64 {
+	fi, err := file.Stat()
+	if err != nil {
+		return 0
+	}
+	return fi.Size()
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
