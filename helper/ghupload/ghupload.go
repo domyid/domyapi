@@ -1,6 +1,7 @@
 package ghupload
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -33,20 +34,7 @@ func GithubListFiles(GitHubAccessToken, githubOrg, githubRepo, path string) ([]*
 }
 
 // Fungsi untuk upload ke GitHub
-func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string, fileHeader *multipart.FileHeader, githubOrg string, githubRepo string, pathFile string, replace bool) (content *github.RepositoryContentResponse, response *github.Response, err error) {
-	// Open the file
-	file, err := fileHeader.Open()
-	if err != nil {
-		return
-	}
-	defer file.Close()
-
-	// Read the file content
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		return
-	}
-
+func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string, fileHeader *multipart.FileHeader, githubOrg string, githubRepo string, pathFile string, replace bool, fileContent *bytes.Buffer) (content *github.RepositoryContentResponse, response *github.Response, err error) {
 	// Konfigurasi koneksi ke GitHub menggunakan token akses
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -58,7 +46,7 @@ func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string,
 	// Membuat opsi untuk mengunggah file
 	opts := &github.RepositoryContentFileOptions{
 		Message: github.String("Upload file"),
-		Content: fileContent,
+		Content: fileContent.Bytes(),
 		Branch:  github.String("main"),
 		Author: &github.CommitAuthor{
 			Name:  github.String(GitHubAuthorName),
@@ -68,10 +56,11 @@ func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string,
 
 	// Membuat permintaan untuk mengunggah file
 	content, response, err = client.Repositories.CreateFile(ctx, githubOrg, githubRepo, pathFile, opts)
-	if (err != nil) && replace {
+	if (err != nil) && (replace) {
 		currentContent, _, _, _ := client.Repositories.GetContents(ctx, githubOrg, githubRepo, pathFile, nil)
 		opts.SHA = github.String(currentContent.GetSHA())
 		content, response, err = client.Repositories.UpdateFile(ctx, githubOrg, githubRepo, pathFile, opts)
+		return
 	}
 
 	return

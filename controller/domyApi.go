@@ -376,7 +376,6 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listNilai)
 }
 
-// Fungsi utama untuk mendapatkan BAP dan mengunggah ke GitHub
 func GetBAP(w http.ResponseWriter, r *http.Request) {
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -385,7 +384,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mengambil token dari database berdasarkan nohp
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
@@ -462,31 +461,10 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate PDF
-	fileName, err := pdf.GenerateBAPPDF(result)
+	buf, fileName, err := pdf.GenerateBAPPDF(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	// Ensure the file exists
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		http.Error(w, "Generated PDF file does not exist", http.StatusInternalServerError)
-		return
-	}
-
-	// Open the generated PDF file
-	file, err := os.Open(fileName)
-	if err != nil {
-		http.Error(w, "Failed to open generated PDF file", http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
-
-	// Create a new FileHeader
-	fileHeader := &multipart.FileHeader{
-		Filename: filepath.Base(fileName),
-		Header:   textproto.MIMEHeader{},
-		Size:     getFileSize(file),
 	}
 
 	// Fetch GitHub credentials from database
@@ -496,8 +474,22 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save to GitHub
-	content, _, err := github.GithubUpload(gh.GitHubAccessToken, gh.GitHubAuthorName, gh.GitHubAuthorEmail, fileHeader, "repoulbi", "buktiajar", filepath.Join("2023-2", fileHeader.Filename), false)
+	// Upload to GitHub
+	content, _, err := github.GithubUpload(
+		gh.GitHubAccessToken,
+		gh.GitHubAuthorName,
+		gh.GitHubAuthorEmail,
+		&multipart.FileHeader{
+			Filename: fileName,
+			Header:   textproto.MIMEHeader{},
+			Size:     int64(buf.Len()),
+		},
+		"repoulbi",
+		"buktiajar",
+		filepath.Join("2023-2", fileName),
+		false,
+		buf,
+	)
 	if err != nil {
 		http.Error(w, "Failed to upload PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
 		return

@@ -1,8 +1,8 @@
 package domyApi
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"strconv"
 
 	model "github.com/domyid/domyapi/model"
@@ -26,8 +26,7 @@ func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	return pdf
 }
 
-// GenerateBAPPDF generates the BAP PDF
-func GenerateBAPPDF(data model.BAP) (string, error) {
+func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
 	Text := []string{
 		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
 		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
@@ -116,19 +115,13 @@ func GenerateBAPPDF(data model.BAP) (string, error) {
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
-	// Save the PDF to a file with dynamic filename
+	// Save the PDF to a buffer
 	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
-	err := SavePDF(pdf, fileName)
+	var buf bytes.Buffer
+	err := pdf.Output(&buf)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
-	// Check if the file exists
-	_, err = os.Stat(fileName)
-	if os.IsNotExist(err) {
-		return "", fmt.Errorf("file %s does not exist", fileName)
-	}
-
-	fmt.Printf("File successfully saved at %s\n", fileName)
-	return fileName, nil
+	return &buf, fileName, nil
 }
