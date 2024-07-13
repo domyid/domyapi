@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	config "github.com/domyid/domyapi/config"
+	helper "github.com/domyid/domyapi/helper"
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
@@ -477,21 +479,20 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gitHubPath := filepath.Join("2023-2", fileName)
-
 	// Check if file already exists in GitHub
 	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
-	)
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: gh.GitHubAccessToken})
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
+	gitHubPath := filepath.Join("2023-2", fileName)
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
 		// File already exists on GitHub, return viewer URL
-		viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", gitHubPath)
-		json.NewEncoder(w).Encode(map[string]string{"url": viewerURL})
+		encodedPath := base64.StdEncoding.EncodeToString([]byte(gitHubPath))
+		viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", encodedPath)
+		resp := map[string]string{"viewerURL": viewerURL}
+		helper.WriteJSON(w, http.StatusOK, resp)
 		return
 	}
 
@@ -517,10 +518,12 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create viewer URL
-	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", *content.Content.Path)
+	encodedPath := base64.StdEncoding.EncodeToString([]byte(*content.Content.Path))
+	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", encodedPath)
 
 	// Send the viewer URL as the response
-	json.NewEncoder(w).Encode(map[string]string{"url": viewerURL})
+	resp := map[string]string{"viewerURL": viewerURL}
+	helper.WriteJSON(w, http.StatusOK, resp)
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
