@@ -1,7 +1,6 @@
 package ghupload
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -33,37 +32,39 @@ func GithubListFiles(GitHubAccessToken, githubOrg, githubRepo, path string) ([]*
 	return directoryContent, nil
 }
 
-// Fungsi untuk upload ke GitHub
-func GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string, fileHeader *multipart.FileHeader, githubOrg string, githubRepo string, pathFile string, replace bool, fileContent *bytes.Buffer) (content *github.RepositoryContentResponse, response *github.Response, err error) {
-	// Konfigurasi koneksi ke GitHub menggunakan token akses
+func GithubUpload(accessToken, authorName, authorEmail string, fileHeader *multipart.FileHeader, org, repo, path string, replace bool, fileContent io.Reader) (*github.RepositoryContentResponse, *github.Response, error) {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: GitHubAccessToken},
+		&oauth2.Token{AccessToken: accessToken},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
-	// Membuat opsi untuk mengunggah file
+	content, err := io.ReadAll(fileContent)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	opts := &github.RepositoryContentFileOptions{
 		Message: github.String("Upload file"),
-		Content: fileContent.Bytes(),
+		Content: content,
 		Branch:  github.String("main"),
 		Author: &github.CommitAuthor{
-			Name:  github.String(GitHubAuthorName),
-			Email: github.String(GitHubAuthorEmail),
+			Name:  github.String(authorName),
+			Email: github.String(authorEmail),
 		},
 	}
 
-	// Membuat permintaan untuk mengunggah file
-	content, response, err = client.Repositories.CreateFile(ctx, githubOrg, githubRepo, pathFile, opts)
-	if (err != nil) && (replace) {
-		currentContent, _, _, _ := client.Repositories.GetContents(ctx, githubOrg, githubRepo, pathFile, nil)
-		opts.SHA = github.String(currentContent.GetSHA())
-		content, response, err = client.Repositories.UpdateFile(ctx, githubOrg, githubRepo, pathFile, opts)
-		return
+	fileContentSHA := ""
+	if replace {
+		currentContent, _, _, err := client.Repositories.GetContents(ctx, org, repo, path, nil)
+		if err == nil {
+			fileContentSHA = currentContent.GetSHA()
+			opts.SHA = github.String(fileContentSHA)
+		}
 	}
 
-	return
+	return client.Repositories.CreateFile(ctx, org, repo, path, opts)
 }
 
 func GithubUpdateFile(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail string, fileHeader *multipart.FileHeader, githubOrg, githubRepo, pathFile string) (*github.RepositoryContentResponse, *github.Response, error) {

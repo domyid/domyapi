@@ -1,6 +1,7 @@
 package domyApi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,11 +20,13 @@ import (
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
-	github "github.com/domyid/domyapi/helper/ghupload"
+	ghp "github.com/domyid/domyapi/helper/ghupload"
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
+	"github.com/google/go-github/v35/github"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/oauth2"
 )
 
 // GetMahasiswa handles the request to get Mahasiswa data
@@ -474,8 +477,26 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	gitHubPath := filepath.Join("2023-2", fileName)
+
+	// Check if file already exists in GitHub
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+
+	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
+	if err == nil {
+		// File already exists on GitHub, redirect to viewer URL
+		viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", gitHubPath)
+		http.Redirect(w, r, viewerURL, http.StatusFound)
+		return
+	}
+
 	// Upload to GitHub
-	content, _, err := github.GithubUpload(
+	content, _, err := ghp.GithubUpload(
 		gh.GitHubAccessToken,
 		gh.GitHubAuthorName,
 		gh.GitHubAuthorEmail,
@@ -486,7 +507,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		},
 		"repoulbi",
 		"buktiajar",
-		filepath.Join("2023-2", fileName),
+		gitHubPath,
 		false,
 		buf,
 	)
@@ -500,15 +521,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	// Send the viewer URL as the response
 	http.Redirect(w, r, viewerURL, http.StatusFound)
-}
-
-// Utility function to get the size of the file
-func getFileSize(file *os.File) int64 {
-	fi, err := file.Stat()
-	if err != nil {
-		return 0
-	}
-	return fi.Size()
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
