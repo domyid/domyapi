@@ -1,7 +1,6 @@
 package domyApi
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -499,8 +498,33 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create viewer URL
-	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", base64.StdEncoding.EncodeToString([]byte(gitHubPath)))
+	// Akses halaman untuk mendapatkan URL file PDF
+	resp, err := http.Get("https://repo.ulbi.ac.id/buktiajar/#2023-2")
+	if err != nil {
+		http.Error(w, "Failed to fetch directory list: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Parse the HTML response to find the correct file URL
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to parse directory list: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var viewerURL string
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		href, exists := s.Attr("href")
+		if exists && strings.Contains(href, fileName) {
+			viewerURL = href
+		}
+	})
+
+	if viewerURL == "" {
+		http.Error(w, "Failed to find the uploaded file in the directory list", http.StatusNotFound)
+		return
+	}
 
 	// Send the viewer URL as the response
 	w.Write([]byte(viewerURL))
