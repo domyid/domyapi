@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-github/v32/github"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/net/html"
 	"golang.org/x/oauth2"
 )
 
@@ -508,19 +509,28 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Parse the HTML to find the correct URL
-		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+		doc, err := html.Parse(bytes.NewReader(body))
 		if err != nil {
 			http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		var viewerURL string
-		doc.Find("a").Each(func(i int, s *goquery.Selection) {
-			href, _ := s.Attr("href")
-			if strings.Contains(href, fileName) {
-				viewerURL = href
+		var f func(*html.Node)
+		f = func(n *html.Node) {
+			if n.Type == html.ElementNode && n.Data == "a" {
+				for _, a := range n.Attr {
+					if a.Key == "href" && strings.Contains(a.Val, fileName) {
+						viewerURL = a.Val
+						break
+					}
+				}
 			}
-		})
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				f(c)
+			}
+		}
+		f(doc)
 
 		if viewerURL == "" {
 			http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
@@ -569,19 +579,28 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the HTML to find the correct URL
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	doc, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
 		http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	var viewerURL string
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		href, _ := s.Attr("href")
-		if strings.Contains(href, fileName) {
-			viewerURL = href
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, a := range n.Attr {
+				if a.Key == "href" && strings.Contains(a.Val, fileName) {
+					viewerURL = a.Val
+					break
+				}
+			}
 		}
-	})
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(doc)
 
 	if viewerURL == "" {
 		http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
