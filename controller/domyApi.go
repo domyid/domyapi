@@ -1,6 +1,8 @@
 package domyApi
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,8 +24,10 @@ import (
 	ghp "github.com/domyid/domyapi/helper/ghupload"
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
+	"github.com/google/go-github/v32/github"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/oauth2"
 )
 
 // GetMahasiswa handles the request to get Mahasiswa data
@@ -474,10 +478,61 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Define the GitHub path
-	gitHubPath := filepath.Join("2023-2", fileName)
+	// Define GitHub path
+	gitHubPath := "2023-2/" + fileName
 
-	// Upload to GitHub
+	// Check if file already exists in GitHub
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+
+	// Check if file exists
+	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
+	if err == nil {
+		// File already exists, get URL from repository page
+		url := "https://repo.ulbi.ac.id/buktiajar/#2023-2"
+		resp, err := http.Get(url)
+		if err != nil {
+			http.Error(w, "Failed to fetch repository page: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			http.Error(w, "Failed to read repository page: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Parse the HTML to find the correct URL
+		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+		if err != nil {
+			http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var viewerURL string
+		doc.Find("a").Each(func(i int, s *goquery.Selection) {
+			href, _ := s.Attr("href")
+			if strings.Contains(href, fileName) {
+				viewerURL = href
+			}
+		})
+
+		if viewerURL == "" {
+			http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
+			return
+		}
+
+		// Send the viewer URL as the response
+		w.Write([]byte(viewerURL))
+		return
+	}
+
+	// File tidak ada di GitHub, upload PDF
 	_, _, err = ghp.GithubUpload(
 		gh.GitHubAccessToken,
 		gh.GitHubAuthorName,
@@ -498,31 +553,38 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Akses halaman untuk mendapatkan URL file PDF
-	resp, err := http.Get("https://repo.ulbi.ac.id/buktiajar/#2023-2")
+	// Fetch the repository page again to get the URL
+	url := "https://repo.ulbi.ac.id/buktiajar/#2023-2"
+	resp, err := http.Get(url)
 	if err != nil {
-		http.Error(w, "Failed to fetch directory list: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to fetch repository page: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Parse the HTML response to find the correct file URL
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		http.Error(w, "Failed to parse directory list: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to read repository page: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Parse the HTML to find the correct URL
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	var viewerURL string
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		href, exists := s.Attr("href")
-		if exists && strings.Contains(href, fileName) {
+		href, _ := s.Attr("href")
+		if strings.Contains(href, fileName) {
 			viewerURL = href
 		}
 	})
 
 	if viewerURL == "" {
-		http.Error(w, "Failed to find the uploaded file in the directory list", http.StatusNotFound)
+		http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
 		return
 	}
 

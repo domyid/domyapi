@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/PuerkitoBio/goquery v1.9.2
-	github.com/google/go-github/v35 v35.3.0
+	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-github/v59 v59.0.0
 	github.com/google/go-querystring v1.1.0
 	github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5
