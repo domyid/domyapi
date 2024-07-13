@@ -523,6 +523,33 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"url": viewerURL})
 }
 
+func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
+	// Mengambil no_hp dari header
+	noHp := req.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(respw, "No valid no_hp found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan no_hp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
+	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.NoHp)
+	if err != nil || len(listTA) == 0 {
+		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	// Kembalikan daftar TA sebagai respon JSON
+	at.WriteJSON(respw, http.StatusOK, listTA)
+}
+
 func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	// Mengambil nohp dari header
 	noHp := r.Header.Get("nohp")
