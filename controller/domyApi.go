@@ -1,7 +1,6 @@
 package domyApi
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -18,17 +17,14 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	config "github.com/domyid/domyapi/config"
-	helper "github.com/domyid/domyapi/helper"
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
 	ghp "github.com/domyid/domyapi/helper/ghupload"
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
-	"github.com/google/go-github/v35/github"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/oauth2"
 )
 
 // GetMahasiswa handles the request to get Mahasiswa data
@@ -479,25 +475,11 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if file already exists in GitHub
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: gh.GitHubAccessToken})
-	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
-
+	// Define the GitHub path
 	gitHubPath := filepath.Join("2023-2", fileName)
-	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
-	if err == nil {
-		// File already exists on GitHub, return viewer URL
-		encodedPath := base64.StdEncoding.EncodeToString([]byte(gitHubPath))
-		viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", encodedPath)
-		resp := map[string]string{"viewerURL": viewerURL}
-		helper.WriteJSON(w, http.StatusOK, resp)
-		return
-	}
 
 	// Upload to GitHub
-	content, _, err := ghp.GithubUpload(
+	_, _, err = ghp.GithubUpload(
 		gh.GitHubAccessToken,
 		gh.GitHubAuthorName,
 		gh.GitHubAuthorEmail,
@@ -518,12 +500,10 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create viewer URL
-	encodedPath := base64.StdEncoding.EncodeToString([]byte(*content.Content.Path))
-	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", encodedPath)
+	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", base64.StdEncoding.EncodeToString([]byte(gitHubPath)))
 
 	// Send the viewer URL as the response
-	resp := map[string]string{"viewerURL": viewerURL}
-	helper.WriteJSON(w, http.StatusOK, resp)
+	w.Write([]byte(viewerURL))
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
