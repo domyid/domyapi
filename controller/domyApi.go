@@ -489,9 +489,9 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
-		// File already exists on GitHub, redirect to viewer URL
+		// File already exists on GitHub, return viewer URL
 		viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", gitHubPath)
-		http.Redirect(w, r, viewerURL, http.StatusFound)
+		json.NewEncoder(w).Encode(map[string]string{"url": viewerURL})
 		return
 	}
 
@@ -520,34 +520,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	viewerURL := fmt.Sprintf("https://repo.ulbi.ac.id/view/#%s", *content.Content.Path)
 
 	// Send the viewer URL as the response
-	http.Redirect(w, r, viewerURL, http.StatusFound)
-}
-
-func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
-	// Mengambil no_hp dari header
-	noHp := req.Header.Get("nohp")
-	if noHp == "" {
-		http.Error(respw, "No valid no_hp found", http.StatusForbidden)
-		return
-	}
-
-	// Mengambil token dari database berdasarkan no_hp
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
-	if err != nil {
-		fmt.Println("Error Fetching Token:", err)
-		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
-		return
-	}
-
-	// Memanggil fungsi helper untuk mendapatkan list tugas akhir semua mahasiswa
-	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.NoHp)
-	if err != nil || len(listTA) == 0 {
-		at.WriteJSON(respw, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
-		return
-	}
-
-	// Kembalikan daftar TA sebagai respon JSON
-	at.WriteJSON(respw, http.StatusOK, listTA)
+	json.NewEncoder(w).Encode(map[string]string{"url": viewerURL})
 }
 
 func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
