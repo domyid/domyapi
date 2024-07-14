@@ -27,7 +27,6 @@ import (
 	"github.com/google/go-github/v32/github"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/net/html"
 	"golang.org/x/oauth2"
 )
 
@@ -509,36 +508,27 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Parse the HTML to find the correct URL
-		doc, err := html.Parse(bytes.NewReader(body))
+		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 		if err != nil {
 			http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		var viewerURL string
-		var f func(*html.Node)
-		f = func(n *html.Node) {
-			if n.Type == html.ElementNode && n.Data == "a" {
-				for _, a := range n.Attr {
-					if a.Key == "href" && strings.Contains(a.Val, fileName) {
-						viewerURL = a.Val
-						break
-					}
-				}
+		var pdfURL string
+		doc.Find("a").Each(func(i int, s *goquery.Selection) {
+			href, _ := s.Attr("href")
+			if strings.Contains(href, fileName) {
+				pdfURL = href
 			}
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				f(c)
-			}
-		}
-		f(doc)
+		})
 
-		if viewerURL == "" {
+		if pdfURL == "" {
 			http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
 			return
 		}
 
-		// Send the viewer URL as the response
-		w.Write([]byte(viewerURL))
+		// Send the PDF URL as the response
+		w.Write([]byte(pdfURL))
 		return
 	}
 
@@ -579,36 +569,27 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the HTML to find the correct URL
-	doc, err := html.Parse(bytes.NewReader(body))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var viewerURL string
-	var f func(*html.Node)
-	f = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			for _, a := range n.Attr {
-				if a.Key == "href" && strings.Contains(a.Val, fileName) {
-					viewerURL = a.Val
-					break
-				}
-			}
+	var pdfURL string
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		href, _ := s.Attr("href")
+		if strings.Contains(href, fileName) {
+			pdfURL = href
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
-		}
-	}
-	f(doc)
+	})
 
-	if viewerURL == "" {
+	if pdfURL == "" {
 		http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
 		return
 	}
 
-	// Send the viewer URL as the response
-	w.Write([]byte(viewerURL))
+	// Send the PDF URL as the response
+	w.Write([]byte(pdfURL))
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
