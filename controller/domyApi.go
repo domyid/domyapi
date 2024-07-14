@@ -1,7 +1,6 @@
 package domyApi
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/chromedp/chromedp"
 	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
@@ -380,6 +380,45 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listNilai)
 }
 
+func getPdfUrl(fileName string) (string, error) {
+	// Buat context baru dengan timeout
+	ctx, cancel := chromedp.NewContext(context.Background())
+	defer cancel()
+
+	// URL halaman repository
+	url := "https://repo.ulbi.ac.id/buktiajar/#2023-2"
+
+	// Variabel untuk menyimpan hasil
+	var res string
+
+	// Jalankan chromedp
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(url),
+		chromedp.Sleep(2*time.Second), // Tambahkan delay untuk memastikan halaman termuat
+		chromedp.Evaluate(`document.documentElement.outerHTML`, &res),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	// Cari URL yang sesuai
+	startIndex := strings.Index(res, fileName)
+
+	if startIndex == -1 {
+		return "", fmt.Errorf("file not found")
+	}
+	hrefStart := strings.LastIndex(res[:startIndex], `href="`) + 6
+	hrefEnd := strings.Index(res[hrefStart:], `"`) + hrefStart
+
+	pdfURL := res[hrefStart:hrefEnd]
+
+	if pdfURL == "" {
+		return "", fmt.Errorf("failed to find PDF URL on repository page")
+	}
+
+	return pdfURL, nil
+}
+
 func GetBAP(w http.ResponseWriter, r *http.Request) {
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -493,37 +532,9 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
 		// File already exists, get URL from repository page
-		url := "https://repo.ulbi.ac.id/buktiajar/#2023-2"
-		resp, err := http.Get(url)
+		pdfURL, err := getPdfUrl(fileName)
 		if err != nil {
-			http.Error(w, "Failed to fetch repository page: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			http.Error(w, "Failed to read repository page: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Parse the HTML to find the correct URL
-		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
-		if err != nil {
-			http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		var pdfURL string
-		doc.Find("a").Each(func(i int, s *goquery.Selection) {
-			href, _ := s.Attr("href")
-			if strings.Contains(href, fileName) {
-				pdfURL = href
-			}
-		})
-
-		if pdfURL == "" {
-			http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -554,37 +565,9 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the repository page again to get the URL
-	url := "https://repo.ulbi.ac.id/buktiajar/#2023-2"
-	resp, err := http.Get(url)
+	pdfURL, err := getPdfUrl(fileName)
 	if err != nil {
-		http.Error(w, "Failed to fetch repository page: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, "Failed to read repository page: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Parse the HTML to find the correct URL
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
-	if err != nil {
-		http.Error(w, "Failed to parse repository page: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var pdfURL string
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		href, _ := s.Attr("href")
-		if strings.Contains(href, fileName) {
-			pdfURL = href
-		}
-	})
-
-	if pdfURL == "" {
-		http.Error(w, "Failed to find PDF URL on repository page", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
