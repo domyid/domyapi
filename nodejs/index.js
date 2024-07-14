@@ -1,27 +1,22 @@
-const fs = require('fs');
 const puppeteer = require('puppeteer');
 
 async function getPdfUrl(fileName) {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
-    await page.goto('https://repo.ulbi.ac.id/buktiajar/#2023-2');
-    await page.waitForTimeout(2000); // Tambahkan delay untuk memastikan halaman termuat
-    const content = await page.content();
+    await page.goto('https://repo.ulbi.ac.id/buktiajar/#2023-2', { waitUntil: 'networkidle2' });
 
-    const startIndex = content.indexOf(fileName);
-    if (startIndex === -1) {
-        await browser.close();
-        console.log('file not found');
-        return;
-    }
-
-    const hrefStart = content.lastIndexOf('href="', startIndex) + 6;
-    const hrefEnd = content.indexOf('"', hrefStart);
-    const pdfURL = content.substring(hrefStart, hrefEnd);
+    const pdfUrl = await page.evaluate((fileName) => {
+        const links = document.querySelectorAll('a');
+        for (let link of links) {
+            if (link.href.includes(fileName)) {
+                return link.href;
+            }
+        }
+        return null;
+    }, fileName);
 
     await browser.close();
-    console.log(pdfURL);
+    return pdfUrl;
 }
 
-const fileName = process.argv[2];
-getPdfUrl(fileName);
+module.exports = { getPdfUrl };

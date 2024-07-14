@@ -22,8 +22,8 @@ jobs:
           echo "$GOOGLE_APPLICATION_CREDENTIALS" > credentials.json
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
-      - name: 'Use gcloud CLI'
-        run: 'gcloud info'
+      - name: 'Install Puppeteer'
+        run: npm install puppeteer
       - name: 'Deploy a gen 2 cloud function'
         run: |
           gcloud functions deploy domytest \
@@ -32,6 +32,7 @@ jobs:
             --entry-point=WebHook \
             --gen2 \
             --runtime=go122 \
+            --runtime nodejs14 \
             --trigger-http \
             --service-account domytest@domytest.iam.gserviceaccount.com \
             --project domytest \

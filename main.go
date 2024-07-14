@@ -1,12 +1,11 @@
 package domyApi
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
-	"time"
+	"path/filepath"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	route "github.com/domyid/domyapi/route"
@@ -14,18 +13,6 @@ import (
 
 func init() {
 	functions.HTTP("WebHook", route.URL)
-}
-
-func getPdfUrl(fileName string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "node", "nodejs/index.js", fileName)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
 }
 
 func WebHook(w http.ResponseWriter, r *http.Request) {
@@ -47,4 +34,13 @@ func WebHook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte(pdfURL))
+}
+
+func getPdfUrl(fileName string) (string, error) {
+	cmd := exec.Command("node", filepath.Join("nodejs", "index.js"), fileName)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
 }
