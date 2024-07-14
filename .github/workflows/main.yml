@@ -36,12 +36,6 @@ jobs:
             --service-account domytest@domytest.iam.gserviceaccount.com \
             --project domytest \
             --set-env-vars=MONGOSTRING='${{ secrets.MONGOSTRING }}'
-          gcloud functions deploy getPdfUrl \
-            --runtime=nodejs14 \
-            --trigger-http \
-            --allow-unauthenticated \
-            --entry-point=getPdfUrl \
-            --region=asia-southeast2
       - name: 'Cek eksistensi fungsi'
         run: 'gcloud functions describe domytest --region=asia-southeast2'
       - name: 'Cek log debugging'
