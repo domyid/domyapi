@@ -78,7 +78,6 @@ func GetDataIDFromTugasAkhir(noHp, nim string) (string, error) {
 	return "", fmt.Errorf("no valid data ID found for the given NIM")
 }
 
-// FetchListBimbingan retrieves the list of Bimbingan based on the given dataID and token.
 func FetchListBimbingan(dataID, token string) ([]model.ListBimbingan, error) {
 	// URL target untuk mendapatkan data list bimbingan
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
@@ -103,9 +102,10 @@ func FetchListBimbingan(dataID, token string) ([]model.ListBimbingan, error) {
 		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
 
 		var disetujui bool
-		if s.Find("td").Eq(4).Find("i").HasClass("fa-check") {
+		disetujuiElement := s.Find("td").Eq(4)
+		if disetujuiElement.Find("i").HasClass("fa-check") {
 			disetujui = true
-		} else {
+		} else if strings.TrimSpace(disetujuiElement.Text()) == "" {
 			disetujui = false
 		}
 
