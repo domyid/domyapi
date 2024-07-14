@@ -1,11 +1,7 @@
 package domyApi
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -305,43 +301,4 @@ func FetchNilai(dataID, token string) ([]model.Nilai, error) {
 	})
 
 	return listNilai, nil
-}
-
-func fetchDataBAP(noHp, periode, kelas string) (*model.BAPResponse, error) {
-	url := "https://asia-southeast2-domytest.cloudfunctions.net/domytest/BAP"
-
-	requestBody, err := json.Marshal(map[string]string{
-		"periode": periode,
-		"kelas":   kelas,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("nohp", noHp)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var bapResponse model.BAPResponse
-	err = json.Unmarshal(body, &bapResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return &bapResponse, nil
 }

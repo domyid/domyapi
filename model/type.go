@@ -103,7 +103,7 @@ type ListBimbingan struct {
 	Tanggal         string `bson:"Tanggal,omitempty" json:"Tanggal,omitempty"`
 	DosenPembimbing string `bson:"dosenpembimbing,omitempty" json:"dosenpembimbing,omitempty"`
 	Topik           string `bson:"topik,omitempty" json:"topik,omitempty"`
-	Disetujui       bool   `bson:"disetujui,omitempty" json:"disetujui,omitempty"`
+	Disetujui       bool   `bson:"disetujui" json:"disetujui"`
 	DataID          string `bson:"data_id,omitempty" json:"data_id,omitempty"`
 }
 
