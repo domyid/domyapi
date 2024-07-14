@@ -32,6 +32,7 @@ jobs:
             --entry-point=WebHook \
             --gen2 \
             --runtime=go122 \
+            --runtime nodejs14 \
             --trigger-http \
             --service-account domytest@domytest.iam.gserviceaccount.com \
             --project domytest \

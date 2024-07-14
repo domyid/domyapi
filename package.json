@@ -1,0 +1,11 @@
+{
+    "name": "chromium-setup",
+    "version": "1.0.0",
+    "scripts": {
+      "start": "node index.js"
+    },
+    "dependencies": {
+      "puppeteer": "^10.0.0"
+    }
+  }
+  
