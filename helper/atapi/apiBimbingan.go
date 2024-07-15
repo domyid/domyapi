@@ -2,6 +2,9 @@ package domyApi
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -120,4 +123,74 @@ func FetchListBimbingan(dataID, token string) ([]model.ListBimbingan, error) {
 	})
 
 	return listBimbingan, nil
+}
+
+// Fungsi untuk mengambil data dari halaman edit
+func GetDetailBimbingan(bimbinganID, token string) (model.DetailBimbingan, error) {
+	// URL target untuk mendapatkan data dari halaman edit
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", bimbinganID)
+
+	// Buat payload berisi informasi token
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": token,
+	}
+
+	// Mengirim permintaan untuk mengambil data dari halaman edit
+	doc, err := GetData(urlTarget, payload, nil)
+	if err != nil {
+		return model.DetailBimbingan{}, fmt.Errorf("error fetching data: %v", err)
+	}
+
+	// Ekstrak informasi dari respon
+	detail := model.DetailBimbingan{
+		BimbinganKe:    doc.Find("input[name='bimbinganke']").AttrOr("value", ""),
+		NIP:            doc.Find("select[name='nip'] option[selected]").AttrOr("value", ""),
+		TglBimbingan:   doc.Find("input[name='tglbimbingan']").AttrOr("value", ""),
+		TopikBimbingan: doc.Find("input[name='topikbimbingan']").AttrOr("value", ""),
+		Bahasan:        doc.Find("textarea[name='bahasan']").Text(),
+		Link:           "",
+		Lampiran:       "",
+		Key:            "",
+		Act:            "save",
+	}
+
+	return detail, nil
+}
+
+// Fungsi untuk mengirim data yang telah disetujui
+func ApproveBimbingan(bimbinganID, token string, data model.DetailBimbingan) error {
+	postURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", bimbinganID)
+
+	form := url.Values{}
+	form.Add("bimbinganke", data.BimbinganKe)
+	form.Add("nip", data.NIP)
+	form.Add("tglbimbingan", data.TglBimbingan)
+	form.Add("topikbimbingan", data.TopikBimbingan)
+	form.Add("bahasan", data.Bahasan)
+	form.Add("disetujui", "1") // Set the approved flag
+	form.Add("link[]", data.Link)
+	form.Add("lampiran[]", data.Lampiran)
+	form.Add("key", data.Key)
+	form.Add("act", data.Act)
+
+	req, err := http.NewRequest("POST", postURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", token))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
 }

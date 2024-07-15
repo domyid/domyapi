@@ -107,6 +107,18 @@ type ListBimbingan struct {
 	DataID          string `bson:"data_id,omitempty" json:"data_id,omitempty"`
 }
 
+type DetailBimbingan struct {
+	BimbinganKe    string
+	NIP            string
+	TglBimbingan   string
+	TopikBimbingan string
+	Bahasan        string
+	Link           string
+	Lampiran       string
+	Key            string
+	Act            string
+}
+
 type TugasAkhirAllMahasiswa struct {
 	Nama         string `bson:"nama,omitempty" json:"nama"`
 	NIM          string `bson:"nim,omitempty" json:"nim"`

@@ -9,13 +9,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
 	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
@@ -645,7 +643,6 @@ func GetListBimbinganMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listBimbingan)
 }
 
-// ApproveBimbingan handles the request to approve the Bimbingan
 func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -670,10 +667,6 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := map[string]string{
-		"SIAKAD_CLOUD_ACCESS": tokenData.Token,
-	}
-
 	listTA, err := api.FetchListTugasAkhirMahasiswa(tokenData.NoHp)
 	if err != nil || len(listTA) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch Tugas Akhir or no data found")
@@ -692,69 +685,37 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s?t=%d", dataID, time.Now().Unix())
-
-	doc, err := api.GetData(urlTarget, payload, nil)
+	// Fetch list bimbingan using the helper function
+	listBimbingan, err := api.FetchListBimbingan(dataID, tokenData.Token)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	var bimbinganID string
-	doc.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
-		topik := strings.TrimSpace(s.Find("td").Eq(3).Text())
-		disetujui := s.Find("td").Eq(4).Text()
-		if topik == requestData.Topik && disetujui == "" {
-			bimbinganID, _ = s.Find("td").Eq(5).Find("button").Attr("data-id")
-			return
+	for _, bimbingan := range listBimbingan {
+		if bimbingan.Topik == requestData.Topik && !bimbingan.Disetujui {
+			bimbinganID = bimbingan.DataID
+			break
 		}
-	})
+	}
 
 	if bimbinganID == "" {
 		http.Error(w, "No valid data ID found for the provided topik", http.StatusForbidden)
 		return
 	}
 
-	getURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", bimbinganID)
-
-	doc, err = api.GetData(getURL, payload, nil)
+	// Mendapatkan data detail bimbingan
+	editData, err := api.GetDetailBimbingan(bimbinganID, tokenData.Token)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	bimbinganke := doc.Find("input[name='bimbinganke']").AttrOr("value", "")
-	nip := doc.Find("select[name='nip'] option[selected]").AttrOr("value", "")
-	tglbimbingan := doc.Find("input[name='tglbimbingan']").AttrOr("value", "")
-	topikbimbingan := doc.Find("input[name='topikbimbingan']").AttrOr("value", "")
-
-	form := url.Values{}
-	form.Add("bimbinganke", bimbinganke)
-	form.Add("nip", nip)
-	form.Add("tglbimbingan", tglbimbingan)
-	form.Add("topikbimbingan", topikbimbingan)
-	form.Add("disetujui", "1")
-
-	postURL := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/data_bimbingan/edit/%s", bimbinganID)
-
-	req, err := http.NewRequest("POST", postURL, strings.NewReader(form.Encode()))
+	// Approve the bimbingan
+	err = api.ApproveBimbingan(bimbinganID, tokenData.Token, editData)
 	if err != nil {
-		http.Error(w, "Error creating request", http.StatusInternalServerError)
-		return
-	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Cookie", fmt.Sprintf("SIAKAD_CLOUD_ACCESS=%s", tokenData.Token))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		http.Error(w, "Error sending request", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
-		at.WriteJSON(w, resp.StatusCode, "unexpected status code")
+		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
