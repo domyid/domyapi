@@ -692,9 +692,6 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Logging untuk debugging
-	fmt.Println("List Bimbingan:", listBimbingan)
-
 	var bimbinganID string
 	for _, bimbingan := range listBimbingan {
 		if bimbingan.Topik == requestData.Topik && !bimbingan.Disetujui {
@@ -714,9 +711,6 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	// Logging untuk debugging
-	fmt.Println("Edit Data:", editData)
 
 	// Approve the bimbingan
 	err = api.ApproveBimbingan(bimbinganID, tokenData.Token, editData)
