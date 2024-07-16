@@ -488,18 +488,15 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
-		// File already exists, build the URL and return it
-		strPol := config.PoolStringBuilder.Get()
-		defer func() {
-			strPol.Reset()
-			config.PoolStringBuilder.Put(strPol)
-		}()
+		// File already exists, get URL from repository page
+		pdfURLs := generatePdfUrls(fileName)
+		if pdfURLs == "" {
+			http.Error(w, "Failed to generate PDF URLs", http.StatusInternalServerError)
+			return
+		}
 
-		fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", "")))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
-		strPol.WriteString("\n")
-
-		at.WriteJSON(w, http.StatusOK, strPol.String())
+		// Send the PDF URLs as the response
+		at.WriteJSON(w, http.StatusOK, pdfURLs)
 		return
 	}
 
@@ -524,19 +521,36 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Bangun URL dari file PDF yang baru saja di-upload
+	// Fetch the repository page again to get the URL
+	pdfURLs := generatePdfUrls(fileName)
+	if pdfURLs == "" {
+		http.Error(w, "Failed to generate PDF URLs", http.StatusInternalServerError)
+		return
+	}
+
+	// Send the PDF URLs as the response
+	at.WriteJSON(w, http.StatusOK, pdfURLs)
+}
+
+func generatePdfUrls(fileName string) string {
+	res := struct{ Data []string }{
+		Data: []string{fileName},
+	}
+
 	strPol := config.PoolStringBuilder.Get()
 	defer func() {
 		strPol.Reset()
 		config.PoolStringBuilder.Put(strPol)
 	}()
 
-	fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", "")))
-	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
-	strPol.WriteString("\n")
+	for _, v := range res.Data {
+		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2023-2/", ""), ".pdf", ""), " ", "%20")
+		encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+		strPol.WriteString("\n")
+	}
 
-	// Send the PDF URL as the response
-	at.WriteJSON(w, http.StatusOK, strPol.String())
+	return strPol.String()
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
