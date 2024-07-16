@@ -514,7 +514,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			PoolStringBuilder.Put(strPol)
 		}()
 
-		filePath := "buktiajar/2023-2/" + fileName
+		filePath := "/buktiajar/2023-2/" + fileName
 		filePathEncoded := base64.StdEncoding.EncodeToString([]byte(filePath))
 		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
 		at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
@@ -549,11 +549,10 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		PoolStringBuilder.Put(strPol)
 	}()
 
-	filePath := "buktiajar/2023-2/" + fileName
+	filePath := "/buktiajar/2023-2/" + fileName
 	filePathEncoded := base64.StdEncoding.EncodeToString([]byte(filePath))
 	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
 	at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
-
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
