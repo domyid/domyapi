@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,10 +12,7 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
-	"github.com/chromedp/chromedp"
 	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
@@ -378,45 +376,6 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listNilai)
 }
 
-func getPdfUrl(fileName string) (string, error) {
-	// Buat context baru dengan timeout
-	ctx, cancel := chromedp.NewContext(context.Background())
-	defer cancel()
-
-	// URL halaman repository
-	url := "https://repo.ulbi.ac.id/buktiajar/#2023-2"
-
-	// Variabel untuk menyimpan hasil
-	var res string
-
-	// Jalankan chromedp
-	err := chromedp.Run(ctx,
-		chromedp.Navigate(url),
-		chromedp.Sleep(2*time.Second), // Tambahkan delay untuk memastikan halaman termuat
-		chromedp.Evaluate(`document.documentElement.outerHTML`, &res),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	// Cari URL yang sesuai
-	startIndex := strings.Index(res, fileName)
-
-	if startIndex == -1 {
-		return "", fmt.Errorf("file not found")
-	}
-	hrefStart := strings.LastIndex(res[:startIndex], `href="`) + 6
-	hrefEnd := strings.Index(res[hrefStart:], `"`) + hrefStart
-
-	pdfURL := res[hrefStart:hrefEnd]
-
-	if pdfURL == "" {
-		return "", fmt.Errorf("failed to find PDF URL on repository page")
-	}
-
-	return pdfURL, nil
-}
-
 func GetBAP(w http.ResponseWriter, r *http.Request) {
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
@@ -573,6 +532,21 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(pdfURL))
 }
 
+// Fungsi untuk mengambil URL PDF
+func getPdfUrl(fileName string) (string, error) {
+	strPol := config.PoolStringBuilder.Get()
+	defer func() {
+		strPol.Reset()
+		config.PoolStringBuilder.Put(strPol)
+	}()
+
+	// Replace characters in file name and encode to base64
+	encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2324-1/" + fileName + ".pdf")
+
+	return strPol.String(), nil
+}
+
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil no_hp dari header
 	noHp := req.Header.Get("nohp")
@@ -701,7 +675,7 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if bimbinganID == "" {
-		http.Error(w, "No valid data ID found for the provided topik", http.StatusForbidden)
+		http.Error(w, "Topik bimbingan telah ", http.StatusForbidden)
 		return
 	}
 

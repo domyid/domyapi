@@ -4,7 +4,9 @@ go 1.21
 
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
+	github.com/JPratama7/util v0.2.1
 	github.com/PuerkitoBio/goquery v1.9.2
+	github.com/chromedp/chromedp v0.9.5
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-github/v59 v59.0.0
 	github.com/google/go-querystring v1.1.0
@@ -16,7 +18,6 @@ require (
 require (
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/chromedp/cdproto v0.0.0-20240709201219-e202069cc16b // indirect
-	github.com/chromedp/chromedp v0.9.5 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.14.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
