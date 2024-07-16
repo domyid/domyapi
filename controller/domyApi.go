@@ -553,6 +553,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	filePathEncoded := base64.StdEncoding.EncodeToString([]byte(filePath))
 	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
 	at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
+
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
