@@ -12,6 +12,8 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
@@ -376,7 +378,24 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, listNilai)
 }
 
+var (
+	poolOnce          sync.Once
+	PoolStringBuilder *sync.Pool
+)
+
+func initStringBuilderPool() {
+	poolOnce.Do(func() {
+		PoolStringBuilder = &sync.Pool{
+			New: func() interface{} {
+				return new(strings.Builder)
+			},
+		}
+	})
+}
+
 func GetBAP(w http.ResponseWriter, r *http.Request) {
+	initStringBuilderPool()
+
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
 		http.Error(w, "No valid phone number found", http.StatusForbidden)
@@ -384,9 +403,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mengambil token dari database berdasarkan nohp
-	var tokenData *model.TokenData
-	tokenData, err := atdb.GetOneDoc[*model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
-	if err != nil || tokenData == nil {
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
@@ -396,7 +414,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		Periode string `json:"periode"`
 		Kelas   string `json:"kelas"`
 	}
-
 	err = json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
 		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
@@ -470,9 +487,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch GitHub credentials from database
-	var gh *model.Ghcreates
-	gh, err = atdb.GetOneDoc[*model.Ghcreates](config.Mongoconn, "github", bson.M{})
-	if err != nil || gh == nil {
+	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
+	if err != nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
@@ -492,10 +508,10 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
 		// File already exists, build URL from repository page
-		strPol := config.PoolStringBuilder.Get()
+		strPol := PoolStringBuilder.Get().(*strings.Builder)
 		defer func() {
 			strPol.Reset()
-			config.PoolStringBuilder.Put(strPol)
+			PoolStringBuilder.Put(strPol)
 		}()
 
 		fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(fileName))
@@ -526,10 +542,10 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build the URL from repository page again after upload
-	strPol := config.PoolStringBuilder.Get()
+	strPol := PoolStringBuilder.Get().(*strings.Builder)
 	defer func() {
 		strPol.Reset()
-		config.PoolStringBuilder.Put(strPol)
+		PoolStringBuilder.Put(strPol)
 	}()
 
 	fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(fileName))
