@@ -378,13 +378,6 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetBAP(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			http.Error(w, "A panic occurred during execution", http.StatusInternalServerError)
-			fmt.Println("Recovered from panic:", rec)
-		}
-	}()
-
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
 		http.Error(w, "No valid phone number found", http.StatusForbidden)
@@ -495,22 +488,22 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
-		// File already exists, generate the PDF URL using StringBuilder
+		// File already exists, build the URL and return it
 		strPol := config.PoolStringBuilder.Get()
 		defer func() {
 			strPol.Reset()
 			config.PoolStringBuilder.Put(strPol)
 		}()
 
-		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", ""), " ", "%20")
-		encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+		fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", "")))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
 		strPol.WriteString("\n")
 
 		at.WriteJSON(w, http.StatusOK, strPol.String())
 		return
 	}
 
+	// File tidak ada di GitHub, upload PDF
 	_, _, err = ghp.GithubUpload(
 		gh.GitHubAccessToken,
 		gh.GitHubAuthorName,
@@ -531,18 +524,18 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate the PDF URL using StringBuilder
+	// Bangun URL dari file PDF yang baru saja di-upload
 	strPol := config.PoolStringBuilder.Get()
 	defer func() {
 		strPol.Reset()
 		config.PoolStringBuilder.Put(strPol)
 	}()
 
-	fileName = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", ""), " ", "%20")
-	encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+	fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", "")))
+	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
 	strPol.WriteString("\n")
 
+	// Send the PDF URL as the response
 	at.WriteJSON(w, http.StatusOK, strPol.String())
 }
 
