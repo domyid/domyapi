@@ -395,7 +395,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		Periode string `json:"periode"`
 		Kelas   string `json:"kelas"`
 	}
-
 	err = json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
 		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
@@ -486,7 +485,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
-	// Check if file exists
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
 		// File already exists, build URL from repository page
