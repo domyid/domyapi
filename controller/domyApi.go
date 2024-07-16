@@ -378,13 +378,19 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetBAP(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			http.Error(w, "A panic occurred during execution", http.StatusInternalServerError)
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
+
 	noHp := r.Header.Get("nohp")
 	if noHp == "" {
 		http.Error(w, "No valid phone number found", http.StatusForbidden)
 		return
 	}
 
-	// Mengambil token dari database berdasarkan nohp
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
@@ -402,14 +408,12 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch jadwal mengajar
 	listJadwal, err := api.FetchJadwalMengajar(noHp, requestData.Periode)
 	if err != nil || len(listJadwal) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch jadwal mengajar or no data found")
 		return
 	}
 
-	// Cari data_id berdasarkan kelas dan tambahkan informasi jadwal ke dalam hasil
 	var dataID, kode, mataKuliah, sks, smt, kelas string
 	for _, jadwal := range listJadwal {
 		if jadwal.Kelas == requestData.Kelas {
@@ -428,28 +432,24 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch list absensi using the data ID
 	riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Fetch absensi kelas
 	absensiKelas, err := api.FetchAbsensiKelas(noHp, requestData.Kelas, requestData.Periode)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Fetch list nilai using the data ID
 	listNilai, err := api.FetchNilai(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Gabungkan hasil riwayat mengajar, absensi kelas, nilai mahasiswa, dan informasi jadwal
 	result := model.BAP{
 		Kode:            kode,
 		MataKuliah:      mataKuliah,
@@ -461,24 +461,20 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		ListNilai:       listNilai,
 	}
 
-	// Generate PDF
 	buf, fileName, err := pdf.GenerateBAPPDF(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Fetch GitHub credentials from database
 	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
 	if err != nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
 
-	// Define GitHub path
 	gitHubPath := "2023-2/" + fileName
 
-	// Check if file exists in GitHub
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
@@ -488,19 +484,22 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
-		// File already exists, get URL from repository page
-		pdfURLs, err := getPdfUrls(fileName)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		// File already exists, generate the PDF URL using StringBuilder
+		strPol := config.PoolStringBuilder.Get()
+		defer func() {
+			strPol.Reset()
+			config.PoolStringBuilder.Put(strPol)
+		}()
 
-		// Send the PDF URLs as the response
-		at.WriteJSON(w, http.StatusOK, pdfURLs)
+		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", ""), " ", "%20")
+		encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+		strPol.WriteString("\n")
+
+		at.WriteJSON(w, http.StatusOK, strPol.String())
 		return
 	}
 
-	// File tidak ada di GitHub, upload PDF
 	_, _, err = ghp.GithubUpload(
 		gh.GitHubAccessToken,
 		gh.GitHubAuthorName,
@@ -521,36 +520,19 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the repository page again to get the URL
-	pdfURLs, err := getPdfUrls(fileName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Send the PDF URLs as the response
-	at.WriteJSON(w, http.StatusOK, pdfURLs)
-}
-
-func getPdfUrls(fileName string) (string, error) {
-	res := struct{ Data []string }{
-		Data: []string{fileName},
-	}
-
+	// Generate the PDF URL using StringBuilder
 	strPol := config.PoolStringBuilder.Get()
 	defer func() {
 		strPol.Reset()
 		config.PoolStringBuilder.Put(strPol)
 	}()
 
-	for _, v := range res.Data {
-		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2023-2/", ""), ".pdf", ""), " ", "%20")
-		encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
-		strPol.WriteString("\n")
-	}
+	fileName = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(fileName, "2023-2/", ""), ".pdf", ""), " ", "%20")
+	encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+	strPol.WriteString("\n")
 
-	return strPol.String(), nil
+	at.WriteJSON(w, http.StatusOK, strPol.String())
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {

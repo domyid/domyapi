@@ -2,7 +2,6 @@ package domyApi
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,9 +13,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/google/go-github/v32/github"
 	"github.com/google/go-querystring/query"
-	"golang.org/x/oauth2"
 )
 
 func Get[T any](urltarget string) (statusCode int, result T, err error) {
@@ -249,30 +246,6 @@ func PutStructWithBearer[T any](tokenbearer string, structname interface{}, urlt
 		errormessage = "Error Unmarshal from Response." + er.Error()
 	}
 	return
-}
-
-func FetchPdfData(repoOwner, repoName, path, token string) ([]string, error) {
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
-
-	// Ambil daftar konten dari repositori GitHub
-	_, directoryContent, _, err := client.Repositories.GetContents(ctx, repoOwner, repoName, path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching repository content: %v", err)
-	}
-
-	var pdfFiles []string
-	for _, content := range directoryContent {
-		if content.GetType() == "file" && strings.HasSuffix(content.GetName(), ".pdf") {
-			pdfFiles = append(pdfFiles, content.GetName())
-		}
-	}
-
-	return pdfFiles, nil
 }
 
 // GetData fetches data from the specified URL using the provided cookies.
