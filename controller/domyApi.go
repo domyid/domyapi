@@ -386,7 +386,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	// Mengambil token dari database berdasarkan nohp
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
-	if err != nil {
+	if err != nil || tokenData.NoHp == "" { // Memeriksa apakah tokenData kosong
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
@@ -469,8 +469,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch GitHub credentials from database
-	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
-	if err != nil {
+	gh, err := atdb.GetOneDoc[*model.Ghcreates](config.Mongoconn, "github", bson.M{})
+	if err != nil || gh == nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
@@ -488,15 +488,23 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
-		// File already exists, get URL from repository page
-		pdfURLs := generatePdfUrls(fileName)
-		if pdfURLs == "" {
-			http.Error(w, "Failed to generate PDF URLs", http.StatusInternalServerError)
-			return
+		// File already exists, generate URL
+		res := struct{ Data []string }{Data: []string{fileName}}
+
+		strPol := config.PoolStringBuilder.Get()
+		defer func() {
+			strPol.Reset()
+			config.PoolStringBuilder.Put(strPol)
+		}()
+
+		for _, v := range res.Data {
+			fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2023-2/", ""), ".pdf", ""), " ", "%20")
+			encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+			strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+			strPol.WriteString("\n")
 		}
 
-		// Send the PDF URLs as the response
-		at.WriteJSON(w, http.StatusOK, pdfURLs)
+		w.Write([]byte(strPol.String()))
 		return
 	}
 
@@ -521,21 +529,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the repository page again to get the URL
-	pdfURLs := generatePdfUrls(fileName)
-	if pdfURLs == "" {
-		http.Error(w, "Failed to generate PDF URLs", http.StatusInternalServerError)
-		return
-	}
-
-	// Send the PDF URLs as the response
-	at.WriteJSON(w, http.StatusOK, pdfURLs)
-}
-
-func generatePdfUrls(fileName string) string {
-	res := struct{ Data []string }{
-		Data: []string{fileName},
-	}
+	// Generate URL for the uploaded file
+	res := struct{ Data []string }{Data: []string{fileName}}
 
 	strPol := config.PoolStringBuilder.Get()
 	defer func() {
@@ -550,7 +545,7 @@ func generatePdfUrls(fileName string) string {
 		strPol.WriteString("\n")
 	}
 
-	return strPol.String()
+	w.Write([]byte(strPol.String()))
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
