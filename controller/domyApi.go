@@ -2,7 +2,6 @@ package domyApi
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +11,6 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
-	"strings"
 
 	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
@@ -386,7 +384,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	// Mengambil token dari database berdasarkan nohp
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
-	if err != nil || tokenData.NoHp == "" { // Memeriksa apakah tokenData kosong
+	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
@@ -469,8 +467,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch GitHub credentials from database
-	gh, err := atdb.GetOneDoc[*model.Ghcreates](config.Mongoconn, "github", bson.M{})
-	if err != nil || gh == nil {
+	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
+	if err != nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
@@ -488,23 +486,15 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
-		// File already exists, generate URL
-		res := struct{ Data []string }{Data: []string{fileName}}
-
+		// File already exists, get URL from repository page
 		strPol := config.PoolStringBuilder.Get()
 		defer func() {
 			strPol.Reset()
 			config.PoolStringBuilder.Put(strPol)
 		}()
 
-		for _, v := range res.Data {
-			fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2023-2/", ""), ".pdf", ""), " ", "%20")
-			encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-			strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
-			strPol.WriteString("\n")
-		}
-
-		w.Write([]byte(strPol.String()))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileName + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+		at.WriteJSON(w, http.StatusOK, strPol.String())
 		return
 	}
 
@@ -529,23 +519,15 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate URL for the uploaded file
-	res := struct{ Data []string }{Data: []string{fileName}}
-
+	// Fetch the repository page again to get the URL
 	strPol := config.PoolStringBuilder.Get()
 	defer func() {
 		strPol.Reset()
 		config.PoolStringBuilder.Put(strPol)
 	}()
 
-	for _, v := range res.Data {
-		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2023-2/", ""), ".pdf", ""), " ", "%20")
-		encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
-		strPol.WriteString("\n")
-	}
-
-	w.Write([]byte(strPol.String()))
+	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileName + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+	at.WriteJSON(w, http.StatusOK, strPol.String())
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
