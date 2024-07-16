@@ -384,6 +384,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mengambil token dari database berdasarkan nohp
+	var tokenData *model.TokenData
 	tokenData, err := atdb.GetOneDoc[*model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
 	if err != nil || tokenData == nil {
 		fmt.Println("Error Fetching Token:", err)
@@ -395,6 +396,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		Periode string `json:"periode"`
 		Kelas   string `json:"kelas"`
 	}
+
 	err = json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
 		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
@@ -468,7 +470,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch GitHub credentials from database
-	gh, err := atdb.GetOneDoc[*model.Ghcreates](config.Mongoconn, "github", bson.M{})
+	var gh *model.Ghcreates
+	gh, err = atdb.GetOneDoc[*model.Ghcreates](config.Mongoconn, "github", bson.M{})
 	if err != nil || gh == nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
@@ -485,6 +488,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
+	// Check if file exists
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
 		// File already exists, build URL from repository page
