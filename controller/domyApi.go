@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,7 +20,7 @@ import (
 	ghp "github.com/domyid/domyapi/helper/ghupload"
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
-	"github.com/google/go-github/v59/github"
+	"github.com/google/go-github/v32/github"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/oauth2"
@@ -383,8 +384,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mengambil token dari database berdasarkan nohp
-	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
-	if err != nil {
+	tokenData, err := atdb.GetOneDoc[*model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
+	if err != nil || tokenData == nil {
 		fmt.Println("Error Fetching Token:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
@@ -394,6 +395,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		Periode string `json:"periode"`
 		Kelas   string `json:"kelas"`
 	}
+
 	err = json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
 		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
@@ -467,8 +469,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch GitHub credentials from database
-	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
-	if err != nil {
+	gh, err := atdb.GetOneDoc[*model.Ghcreates](config.Mongoconn, "github", bson.M{})
+	if err != nil || gh == nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
@@ -484,17 +486,19 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
+	// Check if file exists
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
-		// File already exists, get URL from repository page
+		// File already exists, build URL from repository page
 		strPol := config.PoolStringBuilder.Get()
 		defer func() {
 			strPol.Reset()
 			config.PoolStringBuilder.Put(strPol)
 		}()
 
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileName + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
-		at.WriteJSON(w, http.StatusOK, strPol.String())
+		fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+		at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
 		return
 	}
 
@@ -519,15 +523,16 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the repository page again to get the URL
+	// Build the URL from repository page again after upload
 	strPol := config.PoolStringBuilder.Get()
 	defer func() {
 		strPol.Reset()
 		config.PoolStringBuilder.Put(strPol)
 	}()
 
-	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileName + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
-	at.WriteJSON(w, http.StatusOK, strPol.String())
+	fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName + ".pdf")
+	at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
@@ -658,7 +663,7 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if bimbinganID == "" {
-		http.Error(w, "Topik bimbingan telah disetujui", http.StatusForbidden)
+		http.Error(w, "No valid data ID found for the provided topik", http.StatusForbidden)
 		return
 	}
 
