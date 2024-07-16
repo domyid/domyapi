@@ -379,9 +379,9 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 
 func GetBAP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
-		if r := recover(); r != nil {
+		if rec := recover(); rec != nil {
 			http.Error(w, "A panic occurred during execution", http.StatusInternalServerError)
-			fmt.Println("Recovered from panic:", r)
+			fmt.Println("Recovered from panic:", rec)
 		}
 	}()
 
@@ -391,6 +391,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mengambil token dari database berdasarkan nohp
 	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", bson.M{"nohp": noHp})
 	if err != nil {
 		fmt.Println("Error Fetching Token:", err)
@@ -408,12 +409,14 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch jadwal mengajar
 	listJadwal, err := api.FetchJadwalMengajar(noHp, requestData.Periode)
 	if err != nil || len(listJadwal) == 0 {
 		at.WriteJSON(w, http.StatusNotFound, "Failed to fetch jadwal mengajar or no data found")
 		return
 	}
 
+	// Cari data_id berdasarkan kelas dan tambahkan informasi jadwal ke dalam hasil
 	var dataID, kode, mataKuliah, sks, smt, kelas string
 	for _, jadwal := range listJadwal {
 		if jadwal.Kelas == requestData.Kelas {
@@ -432,24 +435,28 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch list absensi using the data ID
 	riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Fetch absensi kelas
 	absensiKelas, err := api.FetchAbsensiKelas(noHp, requestData.Kelas, requestData.Periode)
 	if err != nil {
 		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	// Fetch list nilai using the data ID
 	listNilai, err := api.FetchNilai(dataID, tokenData.Token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Gabungkan hasil riwayat mengajar, absensi kelas, nilai mahasiswa, dan informasi jadwal
 	result := model.BAP{
 		Kode:            kode,
 		MataKuliah:      mataKuliah,
@@ -461,20 +468,24 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		ListNilai:       listNilai,
 	}
 
+	// Generate PDF
 	buf, fileName, err := pdf.GenerateBAPPDF(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Fetch GitHub credentials from database
 	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
 	if err != nil {
 		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
 		return
 	}
 
+	// Define GitHub path
 	gitHubPath := "2023-2/" + fileName
 
+	// Check if file exists in GitHub
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
