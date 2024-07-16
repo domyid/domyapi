@@ -3,6 +3,7 @@ package domyApi
 import (
 	"log"
 	"strings"
+	"sync"
 
 	sy "github.com/JPratama7/util/sync"
 	at "github.com/domyid/domyapi/helper/at"
@@ -13,6 +14,7 @@ import (
 
 var (
 	PoolStringBuilder *sy.Pool[*strings.Builder]
+	poolOnce          sync.Once
 )
 
 var WAAPIToken string

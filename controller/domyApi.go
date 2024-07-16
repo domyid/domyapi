@@ -12,6 +12,7 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"strings"
 
 	config "github.com/domyid/domyapi/config"
 	at "github.com/domyid/domyapi/helper/at"
@@ -20,7 +21,7 @@ import (
 	ghp "github.com/domyid/domyapi/helper/ghupload"
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v59/github"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/oauth2"
@@ -477,7 +478,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	// Define GitHub path
 	gitHubPath := "2023-2/" + fileName
 
-	// Check if file already exists in GitHub
+	// Check if file exists in GitHub
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
@@ -485,18 +486,17 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
-	// Check if file exists
 	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 	if err == nil {
 		// File already exists, get URL from repository page
-		pdfURL, err := getPdfUrl(fileName)
+		pdfURLs, err := getPdfUrls(fileName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// Send the PDF URL as the response
-		w.Write([]byte(pdfURL))
+		// Send the PDF URLs as the response
+		at.WriteJSON(w, http.StatusOK, pdfURLs)
 		return
 	}
 
@@ -522,27 +522,33 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the repository page again to get the URL
-	pdfURL, err := getPdfUrl(fileName)
+	pdfURLs, err := getPdfUrls(fileName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Send the PDF URL as the response
-	w.Write([]byte(pdfURL))
+	// Send the PDF URLs as the response
+	at.WriteJSON(w, http.StatusOK, pdfURLs)
 }
 
-// Fungsi untuk mengambil URL PDF
-func getPdfUrl(fileName string) (string, error) {
+func getPdfUrls(fileName string) (string, error) {
+	res := struct{ Data []string }{
+		Data: []string{fileName},
+	}
+
 	strPol := config.PoolStringBuilder.Get()
 	defer func() {
 		strPol.Reset()
 		config.PoolStringBuilder.Put(strPol)
 	}()
 
-	// Replace characters in file name and encode to base64
-	encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2324-1/" + fileName + ".pdf")
+	for _, v := range res.Data {
+		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2324-1/", ""), ".pdf", ""), " ", "%20")
+		encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2324-1/" + fileName + ".pdf")
+		strPol.WriteString("\n")
+	}
 
 	return strPol.String(), nil
 }
