@@ -544,9 +544,9 @@ func getPdfUrls(fileName string) (string, error) {
 	}()
 
 	for _, v := range res.Data {
-		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2324-1/", ""), ".pdf", ""), " ", "%20")
+		fileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(v, "2324-2/", ""), ".pdf", ""), " ", "%20")
 		encoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2324-1/" + fileName + ".pdf")
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + encoded + ".pdf&/buktiajar/2324-2/" + fileName + ".pdf")
 		strPol.WriteString("\n")
 	}
 
@@ -681,7 +681,7 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if bimbinganID == "" {
-		http.Error(w, "Topik bimbingan telah ", http.StatusForbidden)
+		http.Error(w, "Topik bimbingan telah disetujui", http.StatusForbidden)
 		return
 	}
 
