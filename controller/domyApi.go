@@ -514,8 +514,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			PoolStringBuilder.Put(strPol)
 		}()
 
-		fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName)
+		fileNameEncoded := base64.StdEncoding.EncodeToString([]byte("/buktiajar/2023-2/" + fileName))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded)
 		at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
 		return
 	}
@@ -548,8 +548,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		PoolStringBuilder.Put(strPol)
 	}()
 
-	fileNameEncoded := base64.StdEncoding.EncodeToString([]byte(fileName))
-	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded + ".pdf&/buktiajar/2023-2/" + fileName)
+	fileNameEncoded := base64.StdEncoding.EncodeToString([]byte("/buktiajar/2023-2/" + fileName))
+	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + fileNameEncoded)
 	at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
 }
 
