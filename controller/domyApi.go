@@ -514,7 +514,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			PoolStringBuilder.Put(strPol)
 		}()
 
-		filePath := "buktiajar/2023-2/" + fileName
+		filePath := "/buktiajar/2023-2/" + fileName
 		// Tambahkan file lain
 		additionalPath := "sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
 		combinedPath := filePath + "&" + additionalPath
@@ -552,7 +552,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		PoolStringBuilder.Put(strPol)
 	}()
 
-	filePath := "buktiajar/2023-2/" + fileName
+	filePath := "/buktiajar/2023-2/" + fileName
 	// Tambahkan file lain
 	additionalPath := "sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
 	combinedPath := filePath + "&" + additionalPath
