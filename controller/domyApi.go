@@ -516,8 +516,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 		filePath := "/buktiajar/2023-2/" + fileName
 		// Tambahkan file lain
-		additionalPath := "sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
-		combinedPath := filePath + "&" + additionalPath
+		additionalPath := "/sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
+		combinedPath := additionalPath + "&" + filePath
 		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
 		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
 		at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
@@ -554,8 +554,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	filePath := "/buktiajar/2023-2/" + fileName
 	// Tambahkan file lain
-	additionalPath := "sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
-	combinedPath := filePath + "&" + additionalPath
+	additionalPath := "/sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
+	combinedPath := additionalPath + "&" + filePath
 	filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
 	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
 	at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
