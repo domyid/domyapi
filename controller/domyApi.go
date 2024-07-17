@@ -514,15 +514,13 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			PoolStringBuilder.Put(strPol)
 		}()
 
-		filePaths := []string{
-			"buktiajar/2023-2/" + fileName,
-			"2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf",
-		}
-		for _, filePath := range filePaths {
-			filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + filePath))
-			strPol.WriteString(filePathEncoded + "&")
-		}
-		at.WriteJSON(w, http.StatusOK, map[string]string{"url": "https://repo.ulbi.ac.id/view/#" + strPol.String()})
+		filePath := "/buktiajar/2023-2/" + fileName
+		// Tambahkan file lain
+		additionalPath := "sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
+		combinedPath := filePath + "&" + additionalPath
+		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
+		at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
 		return
 	}
 
@@ -554,15 +552,13 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		PoolStringBuilder.Put(strPol)
 	}()
 
-	filePaths := []string{
-		"buktiajar/2023-2/" + fileName,
-		"2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf",
-	}
-	for _, filePath := range filePaths {
-		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + filePath))
-		strPol.WriteString(filePathEncoded + "&")
-	}
-	at.WriteJSON(w, http.StatusOK, map[string]string{"url": "https://repo.ulbi.ac.id/view/#" + strPol.String()})
+	filePath := "/buktiajar/2023-2/" + fileName
+	// Tambahkan file lain
+	additionalPath := "sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
+	combinedPath := filePath + "&" + additionalPath
+	filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
+	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
+	at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
