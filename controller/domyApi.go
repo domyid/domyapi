@@ -707,9 +707,17 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ambil data mahasiswa berdasarkan NIM
+	mahasiswa, err := atdb.GetOneDoc[model.Mahasiswa](config.Mongoconn, "mahasiswa", bson.M{"nim": requestData.NIM})
+	if err != nil {
+		http.Error(w, "Failed to fetch Mahasiswa data", http.StatusInternalServerError)
+		return
+	}
+
 	responseData := map[string]interface{}{
 		"status":  "success",
 		"message": "Bimbingan berhasil di approve!",
+		"no_hp":   mahasiswa.NomorHp,
 	}
 
 	at.WriteJSON(w, http.StatusOK, responseData)
