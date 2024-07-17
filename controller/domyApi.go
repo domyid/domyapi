@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -518,9 +519,12 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			"2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf",
 			"buktiajar/2023-2/" + fileName,
 		}
-		for _, filePath := range filePaths {
-			filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + filePath))
-			strPol.WriteString(filePathEncoded + "&")
+		for i, filePath := range filePaths {
+			if i > 0 {
+				strPol.WriteString("&")
+			}
+			filePathEncoded := base64.StdEncoding.EncodeToString([]byte(encodeURIComponent(filePath)))
+			strPol.WriteString(filePathEncoded)
 		}
 		at.WriteJSON(w, http.StatusOK, map[string]string{"url": "https://repo.ulbi.ac.id/view/#" + strPol.String()})
 		return
@@ -558,11 +562,18 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		"2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf",
 		"buktiajar/2023-2/" + fileName,
 	}
-	for _, filePath := range filePaths {
-		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + filePath))
-		strPol.WriteString(filePathEncoded + "&")
+	for i, filePath := range filePaths {
+		if i > 0 {
+			strPol.WriteString("&")
+		}
+		filePathEncoded := base64.StdEncoding.EncodeToString([]byte(encodeURIComponent(filePath)))
+		strPol.WriteString(filePathEncoded)
 	}
 	at.WriteJSON(w, http.StatusOK, map[string]string{"url": "https://repo.ulbi.ac.id/view/#" + strPol.String()})
+}
+
+func encodeURIComponent(str string) string {
+	return url.QueryEscape(str)
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
