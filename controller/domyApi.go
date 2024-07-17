@@ -689,7 +689,7 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if bimbinganID == "" {
-		http.Error(w, "No valid data ID found for the provided topik", http.StatusForbidden)
+		http.Error(w, "Bimbingan Telah diapprove!", http.StatusForbidden)
 		return
 	}
 
