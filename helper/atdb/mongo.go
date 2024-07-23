@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -12,27 +13,43 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func MongoConnect(mconn DBInfo) (db *mongo.Database, err error) {
+func MongoConnect(mconn DBInfo) (*mongo.Database, error) {
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mconn.DBString))
 	if err != nil {
-		mconn.DBString = SRVLookup(mconn.DBString)
+		var srvErr error
+		mconn.DBString, srvErr = SRVLookup(mconn.DBString)
+		if srvErr != nil {
+			return nil, srvErr
+		}
 		client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(mconn.DBString))
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
-	db = client.Database(mconn.DBName)
-	return
+	db := client.Database(mconn.DBName)
+	return db, nil
 }
 
-func SRVLookup(srvuri string) (mongouri string) {
+func SRVLookup(srvuri string) (mongouri string, err error) {
 	atsplits := strings.Split(srvuri, "@")
-	userpass := strings.Split(atsplits[0], "//")[1]
+	if len(atsplits) < 2 {
+		return "", fmt.Errorf("invalid srvuri format")
+	}
+
+	userpassPart := strings.Split(atsplits[0], "//")
+	if len(userpassPart) < 2 {
+		return "", fmt.Errorf("invalid userpass format in srvuri")
+	}
+	userpass := userpassPart[1]
 	mongouri = "mongodb://" + userpass + "@"
+
 	slashsplits := strings.Split(atsplits[1], "/")
+	if len(slashsplits) < 2 {
+		return "", fmt.Errorf("invalid slashsplit format in srvuri")
+	}
 	domain := slashsplits[0]
 	dbname := slashsplits[1]
-	//"mongodb://john:PASSWORD@gdelt-shard-00-00.n1mbb.mongodb.net:27017,gdelt-shard-00-01.n1mbb.mongodb.net:27017,gdelt-shard-00-02.n1mbb.mongodb.net:27017/DATABASE?ssl=true&authSource=admin&replicaSet=atlas-7o9d3y-shard-0"
+
 	r := &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -42,22 +59,29 @@ func SRVLookup(srvuri string) (mongouri string) {
 			return d.DialContext(ctx, network, "8.8.8.8:53")
 		},
 	}
+
 	_, srvs, err := r.LookupSRV(context.Background(), "mongodb", "tcp", domain)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
+
 	var srvlist string
 	for _, srv := range srvs {
 		srvlist += strings.TrimSuffix(srv.Target, ".") + ":" + strconv.FormatUint(uint64(srv.Port), 10) + ","
 	}
 
-	txtrecords, _ := r.LookupTXT(context.Background(), domain)
+	txtrecords, err := r.LookupTXT(context.Background(), domain)
+	if err != nil {
+		return "", err
+	}
+
 	var txtlist string
 	for _, txt := range txtrecords {
 		txtlist += txt
 	}
+
 	mongouri = mongouri + strings.TrimSuffix(srvlist, ",") + "/" + dbname + "?ssl=true&" + txtlist
-	return
+	return mongouri, nil
 }
 
 func GetRandomDoc[T any](db *mongo.Database, collection string, size uint) (result []T, err error) {
