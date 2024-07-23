@@ -689,7 +689,7 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if bimbinganID == "" {
-		http.Error(w, "Bimbingan Telah diapprove!", http.StatusForbidden)
+		http.Error(w, "Gagal, Bimbingan Telah diapprove!", http.StatusForbidden)
 		return
 	}
 
