@@ -163,35 +163,35 @@ func GetRequest(urlTarget string, headers map[string]string, cookies map[string]
 }
 
 // PostRequest sends a POST request to the specified URL with the provided payload and headers.
-func PostRequest(url string, payload map[string]string, headers map[string]string) ([]byte, error) {
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("error marshalling JSON: %w", err)
-	}
+// func PostRequest(url string, payload map[string]string, headers map[string]string) ([]byte, error) {
+// 	payloadBytes, err := json.Marshal(payload)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("error marshalling JSON: %w", err)
+// 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
-	}
+// 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
+// 	if err != nil {
+// 		return nil, fmt.Errorf("error creating request: %w", err)
+// 	}
 
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
+// 	for key, value := range headers {
+// 		req.Header.Set(key, value)
+// 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error making request: %w", err)
-	}
-	defer resp.Body.Close()
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("error making request: %w", err)
+// 	}
+// 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
-	}
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("error reading response body: %w", err)
+// 	}
 
-	return body, nil
-}
+// 	return body, nil
+// }
 
 func TestSingleGet(t *testing.T) {
 	url := "https://www.louisvuittonindo.shop/#/login"
@@ -276,10 +276,34 @@ func TestLoadGet(t *testing.T) {
 	loadTestGet(t, url, headers, cookies, 100000)
 }
 
-func loadTestPost(t *testing.T, url string, payload map[string]string, headers map[string]string, numRequests int) {
+func PostRequest(url string, payload map[string]string, headers map[string]string) (*http.Response, error) {
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	client := &http.Client{}
+	return client.Do(req)
+}
+
+func loadTestPost(t *testing.T, url string, payload map[string]string, numRequests int) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var totalFailures int
+	var totalRequestTime time.Duration
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
 
 	start := time.Now()
 
@@ -287,39 +311,46 @@ func loadTestPost(t *testing.T, url string, payload map[string]string, headers m
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			reqStart := time.Now()
 			_, err := PostRequest(url, payload, headers)
+			reqDuration := time.Since(reqStart)
+			mu.Lock()
+			totalRequestTime += reqDuration
 			if err != nil {
-				mu.Lock()
 				totalFailures++
-				mu.Unlock()
 				t.Errorf("Failed to post data: %s", err)
 			}
+			mu.Unlock()
 		}()
 	}
 
 	wg.Wait()
 
 	duration := time.Since(start)
+	averageRequestTime := totalRequestTime / time.Duration(numRequests)
+	rps := float64(numRequests) / duration.Seconds()
+
 	fmt.Printf("%d requests completed in %v with %d failures\n", numRequests, duration, totalFailures)
+	fmt.Printf("Requests per second (RPS): %.2f\n", rps)
+	fmt.Printf("Average time per request: %v\n", averageRequestTime)
 }
 
 func TestLoadPost(t *testing.T) {
-	url := "https://www.louisvuittonindo.shop/user/api/login?lang=null"
+	url1 := "https://asia-southeast2-ordinal-stone-389604.cloudfunctions.net/login-1"
+	url2 := "http://uza5opjli4pj7dto4mt5pfjufi0kltfb.lambda-url.ap-southeast-2.on.aws"
 
-	// Payload data
 	payload := map[string]string{
-		"userName": "jangannipu",
-		"password": "12345",
+		"nipp":     "1204044",
+		"password": "12345678",
 	}
 
-	// Headers
-	headers := map[string]string{
-		"Content-Type": "application/json",
-		"Accept":       "application/json, text/plain, */*",
-		"User-Agent":   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
-	}
+	numRequests := 10
 
-	loadTestPost(t, url, payload, headers, 10)
+	fmt.Println("Testing URL 1:")
+	loadTestPost(t, url1, payload, numRequests)
+
+	fmt.Println("Testing URL 2:")
+	loadTestPost(t, url2, payload, numRequests)
 }
 
 // Fungsi untuk mengunduh skrip
