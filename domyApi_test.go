@@ -337,7 +337,7 @@ func loadTestPost(t *testing.T, url string, payload map[string]string, numReques
 
 func TestLoadPost(t *testing.T) {
 	url1 := "https://asia-southeast2-ordinal-stone-389604.cloudfunctions.net/login-1"
-	url2 := "http://uza5opjli4pj7dto4mt5pfjufi0kltfb.lambda-url.ap-southeast-2.on.aws"
+	url2 := "https://uza5opjli4pj7dto4mt5pfjufi0kltfb.lambda-url.ap-southeast-2.on.aws"
 
 	payload := map[string]string{
 		"nipp":     "1204044",
@@ -353,65 +353,65 @@ func TestLoadPost(t *testing.T) {
 	loadTestPost(t, url2, payload, numRequests)
 }
 
-// Fungsi untuk mengunduh skrip
-func downloadScript(url string, fileName string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("error making GET request: %w", err)
-	}
-	defer resp.Body.Close()
+// // Fungsi untuk mengunduh skrip
+// func downloadScript(url string, fileName string) error {
+// 	resp, err := http.Get(url)
+// 	if err != nil {
+// 		return fmt.Errorf("error making GET request: %w", err)
+// 	}
+// 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download script, status code: %d", resp.StatusCode)
-	}
+// 	if resp.StatusCode != http.StatusOK {
+// 		return fmt.Errorf("failed to download script, status code: %d", resp.StatusCode)
+// 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("error reading response body: %w", err)
-	}
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return fmt.Errorf("error reading response body: %w", err)
+// 	}
 
-	err = os.WriteFile(fileName, body, 0644)
-	if err != nil {
-		return fmt.Errorf("error writing to file: %w", err)
-	}
+// 	err = os.WriteFile(fileName, body, 0644)
+// 	if err != nil {
+// 		return fmt.Errorf("error writing to file: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// Fungsi pengujian
-func TestDownloadScript(t *testing.T) {
-	// URL skrip JavaScript yang ingin Anda unduh
-	scriptURL := "https://www.louisvuittonindo.shop/static/js/app.20240610134932.js"
+// // Fungsi pengujian
+// func TestDownloadScript(t *testing.T) {
+// 	// URL skrip JavaScript yang ingin Anda unduh
+// 	scriptURL := "https://www.louisvuittonindo.shop/static/js/app.20240610134932.js"
 
-	// Nama file tempat Anda ingin menyimpan skrip
-	fileName := "app.20240610134932.js"
+// 	// Nama file tempat Anda ingin menyimpan skrip
+// 	fileName := "app.20240610134932.js"
 
-	// Hapus file jika sudah ada
-	os.Remove(fileName)
+// 	// Hapus file jika sudah ada
+// 	os.Remove(fileName)
 
-	err := downloadScript(scriptURL, fileName)
-	if err != nil {
-		t.Fatalf("Failed to download script: %s", err)
-	}
+// 	err := downloadScript(scriptURL, fileName)
+// 	if err != nil {
+// 		t.Fatalf("Failed to download script: %s", err)
+// 	}
 
-	// Periksa apakah file telah disimpan
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		t.Fatalf("File not found: %s", fileName)
-	}
+// 	// Periksa apakah file telah disimpan
+// 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+// 		t.Fatalf("File not found: %s", fileName)
+// 	}
 
-	// Baca konten file
-	content, err := os.ReadFile(fileName)
-	if err != nil {
-		t.Fatalf("Failed to read file: %s", err)
-	}
+// 	// Baca konten file
+// 	content, err := os.ReadFile(fileName)
+// 	if err != nil {
+// 		t.Fatalf("Failed to read file: %s", err)
+// 	}
 
-	// Periksa apakah konten file tidak kosong
-	if len(content) == 0 {
-		t.Fatalf("File content is empty")
-	}
+// 	// Periksa apakah konten file tidak kosong
+// 	if len(content) == 0 {
+// 		t.Fatalf("File content is empty")
+// 	}
 
-	fmt.Printf("Script saved to %s\n", fileName)
-}
+// 	fmt.Printf("Script saved to %s\n", fileName)
+// }
 
 // func TestGetStruct(t *testing.T) {
 // 	dt := Sister{
