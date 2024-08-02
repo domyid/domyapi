@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"time"
 
 	model "github.com/domyid/domyapi/model"
 	"github.com/jung-kurt/gofpdf"
 )
 
+// CreateHeaderBAP generates the header for the BAP PDF
 const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
+const SourceURL = "https://siakad.ulbi.ac.id/siakad/rep_perkuliahan"
 
 // CreateHeaderBAP generates the header for the BAP PDF
 func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
@@ -22,6 +25,19 @@ func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	pdf.SetX(x)
 	pdf.CellFormat(70, 10, Text[1], "0", 0, "C", false, 0, "")
 	pdf.Ln(5)
+
+	// Add timestamp
+	pdf.SetFont("Times", "", 10)
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	pdf.SetX(x)
+	pdf.CellFormat(70, 10, fmt.Sprintf("Generated on: %s", timestamp), "0", 0, "C", false, 0, "")
+	pdf.Ln(5)
+
+	// Add source URL
+	pdf.SetX(x)
+	pdf.CellFormat(70, 10, "Source: "+SourceURL, "0", 0, "C", false, 0, "")
+	pdf.Ln(5)
+
 	pdf.SetY(20)
 	return pdf
 }
