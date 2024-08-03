@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +17,6 @@ import (
 	at "github.com/domyid/domyapi/helper/at"
 	api "github.com/domyid/domyapi/helper/atapi"
 	atdb "github.com/domyid/domyapi/helper/atdb"
-	ghp "github.com/domyid/domyapi/helper/ghupload"
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
 	"github.com/google/go-github/v32/github"
@@ -504,48 +501,34 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
-	// Check if file exists
-	_, _, _, err = client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
-	if err == nil {
-		// File already exists, build URL from repository page
-		strPol := PoolStringBuilder.Get().(*strings.Builder)
-		defer func() {
-			strPol.Reset()
-			PoolStringBuilder.Put(strPol)
-		}()
+	fileExists := false
+	fileSHA := ""
 
-		filePath := "/buktiajar/2023-2/" + fileName
-		// Tambahkan file lain
-		additionalPath := "/sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
-		combinedPath := additionalPath + "&" + filePath
-		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
-		at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
-		return
+	// Check if file exists and get its SHA
+	fileContent, _, _, err := client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
+	if err == nil && fileContent != nil {
+		fileExists = true
+		fileSHA = *fileContent.SHA
 	}
 
-	// File tidak ada di GitHub, upload PDF
-	_, _, err = ghp.GithubUpload(
-		gh.GitHubAccessToken,
-		gh.GitHubAuthorName,
-		gh.GitHubAuthorEmail,
-		&multipart.FileHeader{
-			Filename: fileName,
-			Header:   textproto.MIMEHeader{},
-			Size:     int64(buf.Len()),
-		},
-		"repoulbi",
-		"buktiajar",
-		gitHubPath,
-		false,
-		buf,
-	)
+	options := &github.RepositoryContentFileOptions{
+		Message: github.String("Update BAP PDF"),
+		Content: buf.Bytes(),
+		SHA:     nil,
+		Branch:  github.String("main"),
+	}
+
+	if fileExists {
+		options.SHA = github.String(fileSHA)
+	}
+
+	_, _, err = client.Repositories.CreateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
 	if err != nil {
-		http.Error(w, "Failed to upload PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to upload/update PDF on GitHub: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Build the URL from repository page again after upload
+	// Build the URL from the repository page again after upload
 	strPol := PoolStringBuilder.Get().(*strings.Builder)
 	defer func() {
 		strPol.Reset()
