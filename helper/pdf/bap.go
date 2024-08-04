@@ -28,15 +28,15 @@ func CreateHeaderBAP(Text []string) *gofpdf.Fpdf {
 
 	// Add timestamp at top left
 	pdf.SetFont("Times", "", 10)
-	pdf.SetXY(10, 10) // X: 10 mm from left, Y: 10 mm from top
+	pdf.SetXY(10, 10) // X: 10 mm dari kiri, Y: 10 mm dari atas
 	pdf.CellFormat(0, 10, timestamp, "", 0, "L", false, 0, "")
 
 	// Add source URL at top right
-	pdf.SetXY(150, 10) // X: 150 mm from left, Y: 10 mm from top (A4 width is 210mm, right-aligned with some margin)
+	pdf.SetXY(150, 10) // X: 150 mm dari kiri, Y: 10 mm dari atas (lebar A4 adalah 210mm, rata kanan dengan margin)
 	pdf.CellFormat(0, 10, SourceURL, "", 0, "R", false, 0, "")
 
 	// Set header text below the timestamp and source URL
-	pdf.SetXY(70, 20) // Centered text (A4 width is 210mm)
+	pdf.SetXY(70, 20) // Teks di tengah (lebar A4 adalah 210mm)
 	pdf.CellFormat(70, 10, Text[0], "0", 0, "C", false, 0, "")
 	pdf.Ln(5)
 	pdf.SetX(70)
@@ -136,14 +136,17 @@ func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
-	// Add TTD
+	// Add TTD with QR Code
 	pdf.Ln(20)
 	pdf.SetFont("Times", "", 12)
-	pdf.CellFormat(0, 10, "Bandung, "+time.Now().Format("02 Januari 2006"), "", 1, "C", false, 0, "")
-	pdf.CellFormat(0, 10, "Ketua Prodi D4 Teknik Informatika", "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 10, "Bandung, "+time.Now().Format("02 Januari 2006"), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 10, "Ketua Prodi D4 Teknik Informatika", "", 1, "L", false, 0, "")
 	pdf.Ln(20)
-	pdf.CellFormat(0, 10, "RONI ANDARSYAH", "", 1, "C", false, 0, "")
-	pdf.CellFormat(0, 10, "NIDN 0420058801", "", 1, "C", false, 0, "")
+	pdf.Image("path/to/qrcode.png", 10, pdf.GetY(), 20, 20, false, "", 0, "")
+	pdf.SetXY(40, pdf.GetY()-20) // Adjust position for the text next to QR code
+	pdf.CellFormat(0, 10, "RONI ANDARSYAH", "", 1, "L", false, 0, "")
+	pdf.SetX(40)
+	pdf.CellFormat(0, 10, "NIDN 0420058801", "", 1, "L", false, 0, "")
 
 	// Save the PDF to a buffer
 	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
