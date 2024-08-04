@@ -14,31 +14,36 @@ import (
 const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
 const SourceURL = "https://siakad.ulbi.ac.id/siakad/rep_perkuliahan"
 
-// CreateHeaderBAP generates the header for the BAP PDF
-func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
+func CreateHeaderBAP(Text []string) *gofpdf.Fpdf {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 	pdf.SetFont("Times", "B", 12)
-	pdf.SetX(x)
+
+	// Set timezone to Asia/Jakarta
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.FixedZone("WIB", 7*3600) // Default to WIB if timezone load fails
+	}
+	timestamp := time.Now().In(loc).Format("2006-01-02 15:04:05")
+
+	// Add timestamp at top left
+	pdf.SetFont("Times", "", 10)
+	pdf.SetXY(10, 10) // X: 10 mm from left, Y: 10 mm from top
+	pdf.CellFormat(0, 10, timestamp, "", 0, "L", false, 0, "")
+
+	// Add source URL at top right
+	pdf.SetXY(150, 10) // X: 150 mm from left, Y: 10 mm from top (A4 width is 210mm, right-aligned with some margin)
+	pdf.CellFormat(0, 10, SourceURL, "", 0, "R", false, 0, "")
+
+	// Set header text below the timestamp and source URL
+	pdf.SetXY(70, 20) // Centered text (A4 width is 210mm)
 	pdf.CellFormat(70, 10, Text[0], "0", 0, "C", false, 0, "")
 	pdf.Ln(5)
-	pdf.SetX(x)
+	pdf.SetX(70)
 	pdf.CellFormat(70, 10, Text[1], "0", 0, "C", false, 0, "")
 	pdf.Ln(5)
 
-	// Add timestamp
-	pdf.SetFont("Times", "", 10)
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	pdf.SetX(x)
-	pdf.CellFormat(70, 10, fmt.Sprintf("Generated on: %s", timestamp), "0", 0, "C", false, 0, "")
-	pdf.Ln(5)
-
-	// Add source URL
-	pdf.SetX(x)
-	pdf.CellFormat(70, 10, "Source: "+SourceURL, "0", 0, "C", false, 0, "")
-	pdf.Ln(5)
-
-	pdf.SetY(20)
+	pdf.SetY(30)
 	return pdf
 }
 
@@ -53,7 +58,7 @@ func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
 	align := []string{"J", "C", "J"}
 	yCoordinates := []float64{40, 45, 50}
 
-	pdf := CreateHeaderBAP(Text, 90)
+	pdf := CreateHeaderBAP(Text)
 	pdf = ImageCustomize(pdf, "./ulbi.png", InfoImageURL, 28, 11, 35, 12, 100, 100, 0.3)
 
 	// Header Information
@@ -130,6 +135,15 @@ func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
 		}
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
+
+	// Add TTD
+	pdf.Ln(20)
+	pdf.SetFont("Times", "", 12)
+	pdf.CellFormat(0, 10, "Bandung, "+time.Now().Format("02 Januari 2006"), "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 10, "Ketua Prodi D4 Teknik Informatika", "", 1, "C", false, 0, "")
+	pdf.Ln(20)
+	pdf.CellFormat(0, 10, "RONI ANDARSYAH", "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 10, "NIDN 0420058801", "", 1, "C", false, 0, "")
 
 	// Save the PDF to a buffer
 	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))

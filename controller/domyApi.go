@@ -409,11 +409,10 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 	var requestData struct {
 		Periode string `json:"periode"`
-		Kelas   string `json:"kelas"`
 	}
 	err = json.NewDecoder(r.Body).Decode(&requestData)
-	if err != nil || requestData.Periode == "" || requestData.Kelas == "" {
-		http.Error(w, "Invalid request body or periode/kelas not provided", http.StatusBadRequest)
+	if err != nil || requestData.Periode == "" {
+		http.Error(w, "Invalid request body or periode not provided", http.StatusBadRequest)
 		return
 	}
 
@@ -424,124 +423,117 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cari data_id berdasarkan kelas dan tambahkan informasi jadwal ke dalam hasil
-	var dataID, kode, mataKuliah, sks, smt, kelas string
+	var bapList []string
+
 	for _, jadwal := range listJadwal {
-		if jadwal.Kelas == requestData.Kelas {
-			dataID = jadwal.DataID
-			kode = jadwal.Kode
-			mataKuliah = jadwal.MataKuliah
-			sks = jadwal.SKS
-			smt = jadwal.Smt
-			kelas = jadwal.Kelas
-			break
+		dataID := jadwal.DataID
+		kode := jadwal.Kode
+		mataKuliah := jadwal.MataKuliah
+		sks := jadwal.SKS
+		smt := jadwal.Smt
+		kelas := jadwal.Kelas
+
+		// Fetch list absensi using the data ID
+		riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+
+		// Fetch absensi kelas
+		absensiKelas, err := api.FetchAbsensiKelas(noHp, kelas, requestData.Periode)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Fetch list nilai using the data ID
+		listNilai, err := api.FetchNilai(dataID, tokenData.Token)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Gabungkan hasil riwayat mengajar, absensi kelas, nilai mahasiswa, dan informasi jadwal
+		result := model.BAP{
+			Kode:            kode,
+			MataKuliah:      mataKuliah,
+			SKS:             sks,
+			SMT:             smt,
+			Kelas:           kelas,
+			RiwayatMengajar: riwayatMengajar,
+			AbsensiKelas:    absensiKelas,
+			ListNilai:       listNilai,
+		}
+
+		// Generate PDF
+		buf, fileName, err := pdf.GenerateBAPPDF(result)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Fetch GitHub credentials from database
+		gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
+		if err != nil {
+			http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
+			return
+		}
+
+		// Define GitHub path
+		gitHubPath := "2023-2/" + fileName
+
+		// Check if file exists in GitHub
+		ctx := context.Background()
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: gh.GitHubAccessToken},
+		)
+		tc := oauth2.NewClient(ctx, ts)
+		client := github.NewClient(tc)
+
+		fileExists := false
+		fileSHA := ""
+
+		// Check if file exists and get its SHA
+		fileContent, _, _, err := client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
+		if err == nil && fileContent != nil {
+			fileExists = true
+			fileSHA = *fileContent.SHA
+		}
+
+		options := &github.RepositoryContentFileOptions{
+			Message: github.String("Update BAP PDF"),
+			Content: buf.Bytes(),
+			SHA:     nil,
+			Branch:  github.String("main"),
+		}
+
+		if fileExists {
+			options.SHA = github.String(fileSHA)
+		}
+
+		_, _, err = client.Repositories.CreateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
+		if err != nil {
+			http.Error(w, "Failed to upload/update PDF on GitHub: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Build the URL from the repository page again after upload
+		strPol := PoolStringBuilder.Get().(*strings.Builder)
+		defer func() {
+			strPol.Reset()
+			PoolStringBuilder.Put(strPol)
+		}()
+
+		filePath := "/buktiajar/2023-2/" + fileName
+		additionalPath := "/sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
+		combinedPath := additionalPath + "&" + filePath
+		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
+		bapList = append(bapList, strPol.String())
 	}
 
-	if dataID == "" {
-		http.Error(w, "No valid data ID found for the given class", http.StatusNotFound)
-		return
-	}
-
-	// Fetch list absensi using the data ID
-	riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Fetch absensi kelas
-	absensiKelas, err := api.FetchAbsensiKelas(noHp, requestData.Kelas, requestData.Periode)
-	if err != nil {
-		at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// Fetch list nilai using the data ID
-	listNilai, err := api.FetchNilai(dataID, tokenData.Token)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Gabungkan hasil riwayat mengajar, absensi kelas, nilai mahasiswa, dan informasi jadwal
-	result := model.BAP{
-		Kode:            kode,
-		MataKuliah:      mataKuliah,
-		SKS:             sks,
-		SMT:             smt,
-		Kelas:           kelas,
-		RiwayatMengajar: riwayatMengajar,
-		AbsensiKelas:    absensiKelas,
-		ListNilai:       listNilai,
-	}
-
-	// Generate PDF
-	buf, fileName, err := pdf.GenerateBAPPDF(result)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Fetch GitHub credentials from database
-	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
-	if err != nil {
-		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
-		return
-	}
-
-	// Define GitHub path
-	gitHubPath := "2023-2/" + fileName
-
-	// Check if file exists in GitHub
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
-
-	fileExists := false
-	fileSHA := ""
-
-	// Check if file exists and get its SHA
-	fileContent, _, _, err := client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
-	if err == nil && fileContent != nil {
-		fileExists = true
-		fileSHA = *fileContent.SHA
-	}
-
-	options := &github.RepositoryContentFileOptions{
-		Message: github.String("Update BAP PDF"),
-		Content: buf.Bytes(),
-		SHA:     nil,
-		Branch:  github.String("main"),
-	}
-
-	if fileExists {
-		options.SHA = github.String(fileSHA)
-	}
-
-	_, _, err = client.Repositories.CreateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
-	if err != nil {
-		http.Error(w, "Failed to upload/update PDF on GitHub: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Build the URL from the repository page again after upload
-	strPol := PoolStringBuilder.Get().(*strings.Builder)
-	defer func() {
-		strPol.Reset()
-		PoolStringBuilder.Put(strPol)
-	}()
-
-	filePath := "/buktiajar/2023-2/" + fileName
-	// Tambahkan file lain
-	additionalPath := "/sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
-	combinedPath := additionalPath + "&" + filePath
-	filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
-	strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
-	at.WriteJSON(w, http.StatusOK, map[string]string{"url": strPol.String()})
+	at.WriteJSON(w, http.StatusOK, bapList)
 }
 
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {

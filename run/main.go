@@ -2,75 +2,79 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"sync"
+	"os"
 	"time"
+
+	"github.com/jung-kurt/gofpdf"
 )
 
-type RequestData struct {
-	Nipp     string `json:"nipp"`
-	Password string `json:"password"`
-}
+// CreateHeaderBAP generates the header for the BAP PDF
+const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
+const SourceURL = "https://siakad.ulbi.ac.id/siakad/rep_perkuliahan"
 
-func sendPostRequest(url string, data RequestData, wg *sync.WaitGroup, ch chan<- time.Duration) {
-	defer wg.Done()
+// CreateHeaderBAP generates the header for the BAP PDF
+func CreateHeaderBAP(Text []string) *gofpdf.Fpdf {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Times", "B", 12)
 
-	jsonData, err := json.Marshal(data)
+	// Set timezone to Asia/Jakarta
+	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
+		loc = time.FixedZone("WIB", 7*3600) // Default to WIB if timezone load fails
 	}
+	timestamp := time.Now().In(loc).Format("2006-01-02 15:04:05")
 
-	start := time.Now()
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
-	}
-	defer resp.Body.Close()
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("Error reading response:", err)
-		return
-	}
-	duration := time.Since(start)
-	ch <- duration
+	// Add timestamp at top left
+	pdf.SetFont("Times", "", 10)
+	pdf.SetXY(10, 10) // X: 10 mm from left, Y: 10 mm from top
+	pdf.CellFormat(0, 10, timestamp, "", 0, "L", false, 0, "")
+
+	// Add source URL at top right
+	pdf.SetXY(150, 10) // X: 150 mm from left, Y: 10 mm from top (A4 width is 210mm, right-aligned with some margin)
+	pdf.CellFormat(0, 10, SourceURL, "", 0, "R", false, 0, "")
+
+	// Set header text below the timestamp and source URL
+	pdf.SetXY(70, 20) // Centered text (A4 width is 210mm)
+	pdf.CellFormat(70, 10, Text[0], "0", 0, "C", false, 0, "")
+	pdf.Ln(5)
+	pdf.SetX(70)
+	pdf.CellFormat(70, 10, Text[1], "0", 0, "C", false, 0, "")
+	pdf.Ln(5)
+
+	pdf.SetY(30)
+	return pdf
 }
 
 func main() {
-	url := "http://asia-southeast2-ordinal-stone-389604.cloudfunctions.net/login-1/"
-	data := RequestData{
-		Nipp:     "1204044",
-		Password: "12345678",
+	Text := []string{
+		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
+		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
 	}
 
-	numRequests := 100
-	var wg sync.WaitGroup
-	ch := make(chan time.Duration, numRequests)
+	pdf := CreateHeaderBAP(Text)
 
-	start := time.Now()
-
-	for i := 0; i < numRequests; i++ {
-		wg.Add(1)
-		go sendPostRequest(url, data, &wg, ch)
+	var buf bytes.Buffer
+	err := pdf.Output(&buf)
+	if err != nil {
+		fmt.Println("Error generating PDF:", err)
+		return
 	}
 
-	wg.Wait()
-	close(ch)
+	fileName := "header_bap.pdf"
+	file, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error creating PDF file:", err)
+		return
+	}
+	defer file.Close()
 
-	totalDuration := time.Since(start)
-	var sum time.Duration
-	for duration := range ch {
-		sum += duration
+	_, err = file.Write(buf.Bytes())
+	if err != nil {
+		fmt.Println("Error writing to PDF file:", err)
+		return
 	}
 
-	averageDuration := sum / time.Duration(numRequests)
-	rps := float64(numRequests) / totalDuration.Seconds()
-
-	fmt.Printf("Total Time: %s\n", totalDuration)
-	fmt.Printf("Average Time per Request: %s\n", averageDuration)
-	fmt.Printf("Requests Per Second (RPS): %.2f\n", rps)
+	fmt.Printf("PDF successfully created: %s\n", fileName)
 }
