@@ -423,7 +423,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var bapList []string
+	var bapList []map[string]string
 
 	for _, jadwal := range listJadwal {
 		dataID := jadwal.DataID
@@ -530,7 +530,12 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		combinedPath := additionalPath + "&" + filePath
 		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
 		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
-		bapList = append(bapList, strPol.String())
+
+		bapEntry := map[string]string{
+			"kelas": kelas,
+			"url":   strPol.String(),
+		}
+		bapList = append(bapList, bapEntry)
 	}
 
 	at.WriteJSON(w, http.StatusOK, bapList)
