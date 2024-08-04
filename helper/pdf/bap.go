@@ -142,7 +142,7 @@ func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
 	pdf.CellFormat(0, 10, "Bandung, "+time.Now().Format("02 Januari 2006"), "", 1, "L", false, 0, "")
 	pdf.CellFormat(0, 10, "Ketua Prodi D4 Teknik Informatika", "", 1, "L", false, 0, "")
 	pdf.Ln(20)
-	pdf.Image("path/to/qrcode.png", 10, pdf.GetY(), 20, 20, false, "", 0, "")
+	pdf.Image("https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/QR_Code_Example.svg/1200px-QR_Code_Example.svg.png", 10, pdf.GetY(), 20, 20, false, "", 0, "")
 	pdf.SetXY(40, pdf.GetY()-20) // Adjust position for the text next to QR code
 	pdf.CellFormat(0, 10, "RONI ANDARSYAH", "", 1, "L", false, 0, "")
 	pdf.SetX(40)
