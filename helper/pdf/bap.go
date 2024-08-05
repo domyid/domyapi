@@ -11,43 +11,45 @@ import (
 )
 
 // CreateHeaderBAP generates the header for the BAP PDF
-const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
 const SourceURL = "https://siakad.ulbi.ac.id/siakad/rep_perkuliahan"
+const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
 
-func CreateHeaderBAP(Text []string) *gofpdf.Fpdf {
+func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
-	pdf.SetFont("Times", "B", 12)
 
-	// Set timezone to Asia/Jakarta
+	// Menambahkan timestamp di pojok kiri atas dengan font lebih kecil dan tipis
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		loc = time.FixedZone("WIB", 7*3600) // Default to WIB if timezone load fails
+		loc = time.FixedZone("WIB", 7*3600) // Default ke WIB jika timezone gagal dimuat
 	}
 	timestamp := time.Now().In(loc).Format("2006-01-02 15:04:05")
-
-	// Add timestamp at top left
-	pdf.SetFont("Times", "", 10)
-	pdf.SetXY(10, 10) // X: 10 mm dari kiri, Y: 10 mm dari atas
+	pdf.SetFont("Times", "", 10) // Font normal, ukuran 8
+	pdf.SetY(5)
+	pdf.SetX(10)
 	pdf.CellFormat(0, 10, timestamp, "", 0, "L", false, 0, "")
 
-	// Add source URL at top right
-	pdf.SetXY(150, 10) // X: 150 mm dari kiri, Y: 10 mm dari atas (lebar A4 adalah 210mm, rata kanan dengan margin)
+	// Menambahkan URL sumber di pojok kanan atas dengan font lebih kecil dan tipis
+	pdf.SetY(5)
+	pdf.SetX(-10 - pdf.GetStringWidth(SourceURL)) // Sesuaikan posisi X agar rata kanan
 	pdf.CellFormat(0, 10, SourceURL, "", 0, "R", false, 0, "")
 
-	// Set header text below the timestamp and source URL
-	pdf.SetXY(70, 20) // Teks di tengah (lebar A4 adalah 210mm)
-	pdf.CellFormat(70, 10, Text[0], "0", 0, "C", false, 0, "")
-	pdf.Ln(5)
-	pdf.SetX(70)
-	pdf.CellFormat(70, 10, Text[1], "0", 0, "C", false, 0, "")
-	pdf.Ln(5)
+	// Menambahkan teks header di sebelah kanan gambar dengan sedikit spasi dan ke tengah
+	pdf.SetFont("Times", "B", 12) // Kembali ke font bold ukuran 12 untuk header
+	pdf.SetY(20)
+	pdf.SetX(70) // Menambah nilai X agar lebih ke tengah dan ada spasi dengan gambar
+	pdf.CellFormat(70, 10, Text[0], "0", 0, "L", false, 0, "")
+	pdf.Ln(5)    // Menambah jarak antara baris header
+	pdf.SetX(80) // Menambah nilai X agar lebih ke tengah dan ada spasi dengan gambar
+	pdf.CellFormat(70, 10, Text[1], "0", 0, "L", false, 0, "")
+	pdf.Ln(10)
 
-	pdf.SetY(30)
+	// Menggunakan ImageCustomize untuk menambahkan gambar di sebelah kiri teks header
+	pdf = ImageCustomize(pdf, "./ulbi.png", InfoImageURL, 30, 20, 35, 12, 100, 100, 0.3)
 	return pdf
 }
 
-func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
+func GenerateBAPPDFWithoutSignature(data model.BAP) (*bytes.Buffer, string, error) {
 	Text := []string{
 		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
 		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
@@ -58,8 +60,7 @@ func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
 	align := []string{"J", "C", "J"}
 	yCoordinates := []float64{40, 45, 50}
 
-	pdf := CreateHeaderBAP(Text)
-	pdf = ImageCustomize(pdf, "./ulbi.png", InfoImageURL, 28, 11, 35, 12, 100, 100, 0.3)
+	pdf := CreateHeaderBAP(Text, 90)
 
 	// Header Information
 	headerInfo := [][]string{
@@ -136,19 +137,21 @@ func GenerateBAPPDF(data model.BAP) (*bytes.Buffer, string, error) {
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
-	// Add TTD with QR Code
-	pdf.Ln(20)
-	pdf.SetFont("Times", "", 12)
-	pdf.CellFormat(0, 10, "Bandung, "+time.Now().Format("02 Januari 2006"), "", 1, "L", false, 0, "")
-	pdf.CellFormat(0, 10, "Ketua Prodi D4 Teknik Informatika", "", 1, "L", false, 0, "")
-	pdf.Ln(20)
-	pdf.Image("https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/QR_Code_Example.svg/1200px-QR_Code_Example.svg.png", 10, pdf.GetY(), 20, 20, false, "", 0, "")
-	pdf.SetXY(40, pdf.GetY()-20) // Adjust position for the text next to QR code
-	pdf.CellFormat(0, 10, "RONI ANDARSYAH", "", 1, "L", false, 0, "")
-	pdf.SetX(40)
-	pdf.CellFormat(0, 10, "NIDN 0420058801", "", 1, "L", false, 0, "")
+	// Menambahkan tempat tanda tangan tanpa QR code
+	tanggalTerkini := "Bandung, " + getFormattedDate(time.Now())
+	pdf.Ln(10)
+	pdf.SetFont("Times", "", 10)
+	pdf.SetX(-68) // Set posisi tanda tangan di sebelah kanan
+	pdf.CellFormat(0, 5, tanggalTerkini, "", 1, "L", false, 0, "")
+	pdf.SetX(-75)
+	pdf.CellFormat(0, 5, "Ketua Prodi D4 Teknik Informatika", "", 1, "L", false, 0, "")
+	pdf.Ln(30)
+	pdf.SetX(-65)
+	pdf.CellFormat(0, 5, "RONI ANDARSYAH", "", 1, "L", false, 0, "")
+	pdf.SetX(-62)
+	pdf.CellFormat(0, 5, "NIDN 0420058801", "", 1, "L", false, 0, "")
 
-	// Save the PDF to a buffer
+	// Save the PDF to a buffer without signature
 	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
 	var buf bytes.Buffer
 	err := pdf.Output(&buf)

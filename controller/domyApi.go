@@ -2,7 +2,6 @@ package domyApi
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -466,8 +465,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			ListNilai:       listNilai,
 		}
 
-		// Generate PDF
-		buf, fileName, err := pdf.GenerateBAPPDF(result)
+		// Generate PDF without signature
+		buf, fileName, err := pdf.GenerateBAPPDFWithoutSignature(result)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -493,16 +492,27 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 		fileExists := false
 		fileSHA := ""
+		isApproved := false
 
 		// Check if file exists and get its SHA
 		fileContent, _, _, err := client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
 		if err == nil && fileContent != nil {
 			fileExists = true
 			fileSHA = *fileContent.SHA
+
+			// Check if the file has been approved (contains the QR code)
+			content, err := fileContent.GetContent()
+			if err == nil {
+				isApproved, err = pdf.CheckIfQRExists([]byte(content))
+				if err != nil {
+					http.Error(w, "Error checking QR code: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
 		}
 
 		options := &github.RepositoryContentFileOptions{
-			Message: github.String("Update BAP PDF"),
+			Message: github.String("Add BAP PDF"),
 			Content: buf.Bytes(),
 			SHA:     nil,
 			Branch:  github.String("main"),
@@ -526,14 +536,18 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		filePath := "/buktiajar/2023-2/" + fileName
-		additionalPath := "/sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
-		combinedPath := additionalPath + "&" + filePath
-		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
-		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
+		strPol.WriteString("https://repo.ulbi.ac.id/view/" + filePath)
+
+		status := "Belum di approve"
+		if isApproved {
+			status = "Sudah di approve"
+		}
 
 		bapEntry := map[string]string{
-			"kelas": kelas,
-			"url":   strPol.String(),
+			"kelas":           kelas,
+			"url":             strPol.String(),
+			"status":          status,
+			"filename_github": fileName,
 		}
 		bapList = append(bapList, bapEntry)
 	}

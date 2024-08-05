@@ -1,11 +1,36 @@
 package domyApi
 
 import (
+	"fmt"
+	"image/jpeg"
+	"io/ioutil"
+	"os"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/jung-kurt/gofpdf"
+	"github.com/makiuchi-d/gozxing"
+	"github.com/makiuchi-d/gozxing/qrcode"
+	"github.com/pdfcpu/pdfcpu/pkg/api"
 )
+
+// Fungsi untuk mendapatkan nama bulan dalam Bahasa Indonesia
+func getIndonesianMonthName(month time.Month) string {
+	months := []string{
+		"Januari", "Februari", "Maret", "April", "Mei", "Juni",
+		"Juli", "Agustus", "September", "Oktober", "November", "Desember",
+	}
+	return months[month-1]
+}
+
+// Fungsi untuk mendapatkan tanggal dalam format Bahasa Indonesia
+func getFormattedDate(t time.Time) string {
+	day := t.Day()
+	month := getIndonesianMonthName(t.Month())
+	year := t.Year()
+	return fmt.Sprintf("%02d %s %d", day, month, year)
+}
 
 func AddHeadText(pdf *gofpdf.Fpdf, spacing, x float64, align, text string) *gofpdf.Fpdf {
 	pdf.SetFont("Times", "B", 9)
@@ -166,24 +191,26 @@ func SavePDF(pdf *gofpdf.Fpdf, path string) error {
 	return pdf.OutputFileAndClose(path)
 }
 
-func SignatureImage(pdf *gofpdf.Fpdf, filename string, x, spacing float64, textlines []string, textYOffset float64) *gofpdf.Fpdf {
+// Fungsi untuk menambahkan QR code dan teks ke dokumen PDF
+func SignatureImage(pdf *gofpdf.Fpdf, qrFilename string, x, spacing float64, textlines []string, textYOffset float64) *gofpdf.Fpdf {
 	currentY := pdf.GetY()
 	y := currentY + spacing
 
-	pdf.ImageOptions(filename, x, y, 30, 30, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+	pdf.ImageOptions(qrFilename, x, y, 30, 30, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
 	pdf.Ln(-1)
 
-	textX := x - 42          // Use the same x position as the image
-	textY := y + textYOffset // Adjust the Y position based on the offset
+	textX := x + 35          // Posisi teks di sebelah kanan QR code
+	textY := y + textYOffset // Sesuaikan posisi Y berdasarkan offset
 
 	pdf.SetFont("Times", "B", 9)
-	pdf.SetXY(textX-2, textY-6)
+	pdf.SetXY(textX, textY)
 
-	// Add two lines of text using CellFormat
-	pdf.CellFormat(0, 10, textlines[0], "0", 0, "C", false, 0, "")
-
-	// Add the second line of text using Text
-	pdf.Text(textX+56, textY+5, textlines[1])
+	// Tambahkan dua baris teks menggunakan CellFormat
+	for _, line := range textlines {
+		pdf.CellFormat(0, 5, line, "", 1, "L", false, 0, "")
+		textY += 5
+		pdf.SetXY(textX, textY)
+	}
 
 	return pdf
 }
@@ -235,4 +262,75 @@ func SetTableContentCustomY(pdf *gofpdf.Fpdf, tbl [][]string, widths []float64, 
 		pdf.Ln(-1)
 	}
 	return pdf
+}
+
+// CheckIfQRExists checks if a PDF contains any QR codes.
+func CheckIfQRExists(content []byte) (bool, error) {
+	// Create a temporary file to store the PDF content
+	tmpPDF, err := ioutil.TempFile("", "*.pdf")
+	if err != nil {
+		return false, err
+	}
+	defer os.Remove(tmpPDF.Name())
+
+	_, err = tmpPDF.Write(content)
+	if err != nil {
+		return false, err
+	}
+	tmpPDF.Close()
+
+	// Extract images from the PDF
+	extractedImagesDir := "./extracted_images"
+	err = api.ExtractImagesFile(tmpPDF.Name(), extractedImagesDir, nil, nil)
+	if err != nil {
+		return false, err
+	}
+
+	// Check each extracted image for a QR code
+	files, err := ioutil.ReadDir(extractedImagesDir)
+	if err != nil {
+		return false, err
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			imagePath := fmt.Sprintf("%s/%s", extractedImagesDir, file.Name())
+			qrCodeFound, err := CheckImageForQRCode(imagePath)
+			if err != nil {
+				continue
+			}
+			if qrCodeFound {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// CheckImageForQRCode checks if an image file contains a QR code.
+func CheckImageForQRCode(imagePath string) (bool, error) {
+	file, err := os.Open(imagePath)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	img, err := jpeg.Decode(file)
+	if err != nil {
+		return false, err
+	}
+
+	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
+	if err != nil {
+		return false, err
+	}
+
+	qrReader := qrcode.NewQRCodeReader()
+	_, err = qrReader.Decode(bmp, nil)
+	if err != nil {
+		return false, nil // No QR code found
+	}
+
+	return true, nil // QR code found
 }

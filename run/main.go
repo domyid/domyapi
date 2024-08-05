@@ -4,77 +4,108 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/jung-kurt/gofpdf"
+	pdf "github.com/domyid/domyapi/helper/pdf"
+	model "github.com/domyid/domyapi/model"
 )
 
-// CreateHeaderBAP generates the header for the BAP PDF
-const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
-const SourceURL = "https://siakad.ulbi.ac.id/siakad/rep_perkuliahan"
-
-// CreateHeaderBAP generates the header for the BAP PDF
-func CreateHeaderBAP(Text []string) *gofpdf.Fpdf {
-	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.AddPage()
-	pdf.SetFont("Times", "B", 12)
-
-	// Set timezone to Asia/Jakarta
-	loc, err := time.LoadLocation("Asia/Jakarta")
-	if err != nil {
-		loc = time.FixedZone("WIB", 7*3600) // Default to WIB if timezone load fails
-	}
-	timestamp := time.Now().In(loc).Format("2006-01-02 15:04:05")
-
-	// Add timestamp at top left
-	pdf.SetFont("Times", "", 10)
-	pdf.SetXY(10, 10) // X: 10 mm from left, Y: 10 mm from top
-	pdf.CellFormat(0, 10, timestamp, "", 0, "L", false, 0, "")
-
-	// Add source URL at top right
-	pdf.SetXY(150, 10) // X: 150 mm from left, Y: 10 mm from top (A4 width is 210mm, right-aligned with some margin)
-	pdf.CellFormat(0, 10, SourceURL, "", 0, "R", false, 0, "")
-
-	// Set header text below the timestamp and source URL
-	pdf.SetXY(70, 20) // Centered text (A4 width is 210mm)
-	pdf.CellFormat(70, 10, Text[0], "0", 0, "C", false, 0, "")
-	pdf.Ln(5)
-	pdf.SetX(70)
-	pdf.CellFormat(70, 10, Text[1], "0", 0, "C", false, 0, "")
-	pdf.Ln(5)
-
-	pdf.SetY(30)
-	return pdf
-}
-
 func main() {
-	Text := []string{
-		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
-		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
+	// Data BAP contoh
+	data := model.BAP{
+		Kode:       "IF123",
+		MataKuliah: "Pemrograman Go",
+		Kelas:      "TI-1A",
+		SMT:        "6",
+		SKS:        "3",
+		RiwayatMengajar: []model.RiwayatMengajar{
+			{
+				Pertemuan:       "1",
+				Tanggal:         "2023-09-01",
+				Jam:             "08:00-10:00",
+				RencanaMateri:   "Pendahuluan",
+				RealisasiMateri: "Pendahuluan",
+			},
+			{
+				Pertemuan:       "2",
+				Tanggal:         "2023-09-08",
+				Jam:             "08:00-10:00",
+				RencanaMateri:   "Dasar Pemrograman",
+				RealisasiMateri: "Dasar Pemrograman",
+			},
+		},
+		AbsensiKelas: []model.Absensi{
+			{
+				No:         "1",
+				NIM:        "1214001",
+				Nama:       "Ahmad",
+				Pertemuan:  "14",
+				Alfa:       "0",
+				Hadir:      "14",
+				Ijin:       "0",
+				Sakit:      "0",
+				Presentase: "100%",
+			},
+			{
+				No:         "2",
+				NIM:        "1214002",
+				Nama:       "Budi",
+				Pertemuan:  "14",
+				Alfa:       "1",
+				Hadir:      "13",
+				Ijin:       "0",
+				Sakit:      "0",
+				Presentase: "93%",
+			},
+		},
+		ListNilai: []model.Nilai{
+			{
+				No:    "1",
+				NIM:   "1214001",
+				Nama:  "Ahmad",
+				Hadir: "100",
+				ATS:   "90",
+				AAS:   "95",
+				Nilai: "92.5",
+				Grade: "A",
+			},
+			{
+				No:    "2",
+				NIM:   "1214002",
+				Nama:  "Budi",
+				Hadir: "93",
+				ATS:   "80",
+				AAS:   "85",
+				Nilai: "86.0",
+				Grade: "A",
+			},
+		},
 	}
 
-	pdf := CreateHeaderBAP(Text)
-
-	var buf bytes.Buffer
-	err := pdf.Output(&buf)
+	// Generate PDF
+	buf, fileName, err := pdf.GenerateBAPPDFWithoutSignature(data)
 	if err != nil {
 		fmt.Println("Error generating PDF:", err)
 		return
 	}
 
-	fileName := "header_bap.pdf"
+	// Save to file
+	err = saveToFile(buf, fileName)
+	if err != nil {
+		fmt.Println("Error saving PDF:", err)
+		return
+	}
+
+	fmt.Println("PDF saved as:", fileName)
+}
+
+// saveToFile saves the buffer to a file
+func saveToFile(buf *bytes.Buffer, fileName string) error {
 	file, err := os.Create(fileName)
 	if err != nil {
-		fmt.Println("Error creating PDF file:", err)
-		return
+		return err
 	}
 	defer file.Close()
 
-	_, err = file.Write(buf.Bytes())
-	if err != nil {
-		fmt.Println("Error writing to PDF file:", err)
-		return
-	}
-
-	fmt.Printf("PDF successfully created: %s\n", fileName)
+	_, err = buf.WriteTo(file)
+	return err
 }
