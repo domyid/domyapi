@@ -541,7 +541,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		combinedPath := additionalPath + "&" + filePath
 		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
 		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
-		strPol.WriteString("https://repo.ulbi.ac.id/view/" + filePath)
 
 		status := "Belum di approve"
 		if isApproved {
