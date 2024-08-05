@@ -1,10 +1,10 @@
 package domyApi
 
 import (
+	"bytes"
 	"fmt"
-	"image/jpeg"
-	"io/ioutil"
-	"os"
+	"image"
+	"image/png"
 	"strings"
 	"time"
 	"unicode"
@@ -12,7 +12,9 @@ import (
 	"github.com/jung-kurt/gofpdf"
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
-	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/unidoc/unipdf/v3/common"
+	"github.com/unidoc/unipdf/v3/extractor"
+	"github.com/unidoc/unipdf/v3/model"
 )
 
 // Fungsi untuk mendapatkan nama bulan dalam Bahasa Indonesia
@@ -264,73 +266,79 @@ func SetTableContentCustomY(pdf *gofpdf.Fpdf, tbl [][]string, widths []float64, 
 	return pdf
 }
 
-// CheckIfQRExists checks if a PDF contains any QR codes.
-func CheckIfQRExists(content []byte) (bool, error) {
-	// Create a temporary file to store the PDF content
-	tmpPDF, err := ioutil.TempFile("", "*.pdf")
+// Convert unidoc extracted image mark to an image.Image
+func imageMarkToImage(imgMark extractor.ImageMark) (image.Image, error) {
+	img, err := imgMark.Image.ToGoImage()
+	if err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	err = png.Encode(buf, img)
+	if err != nil {
+		return nil, err
+	}
+
+	imgDecoded, err := png.Decode(buf)
+	if err != nil {
+		return nil, err
+	}
+	return imgDecoded, nil
+}
+
+// CheckIfQRExists checks if a QR code exists in the PDF content
+func CheckIfQRExists(pdfContent []byte) (bool, error) {
+	common.SetLogger(common.NewConsoleLogger(common.LogLevelInfo))
+
+	reader := bytes.NewReader(pdfContent)
+	pdfReader, err := model.NewPdfReader(reader)
 	if err != nil {
 		return false, err
 	}
-	defer os.Remove(tmpPDF.Name())
 
-	_, err = tmpPDF.Write(content)
-	if err != nil {
-		return false, err
-	}
-	tmpPDF.Close()
-
-	// Extract images from the PDF
-	extractedImagesDir := "./extracted_images"
-	err = api.ExtractImagesFile(tmpPDF.Name(), extractedImagesDir, nil, nil)
+	numPages, err := pdfReader.GetNumPages()
 	if err != nil {
 		return false, err
 	}
 
-	// Check each extracted image for a QR code
-	files, err := ioutil.ReadDir(extractedImagesDir)
-	if err != nil {
-		return false, err
-	}
+	for i := 1; i <= numPages; i++ {
+		page, err := pdfReader.GetPage(i)
+		if err != nil {
+			return false, err
+		}
 
-	for _, file := range files {
-		if !file.IsDir() {
-			imagePath := fmt.Sprintf("%s/%s", extractedImagesDir, file.Name())
-			qrCodeFound, err := CheckImageForQRCode(imagePath)
+		ex, err := extractor.New(page)
+		if err != nil {
+			return false, err
+		}
+
+		images, err := ex.ExtractPageImages(nil)
+		if err != nil {
+			return false, err
+		}
+
+		for _, imgMark := range images.Images {
+			img, err := imageMarkToImage(imgMark)
 			if err != nil {
-				continue
+				return false, err
 			}
-			if qrCodeFound {
-				return true, nil
+
+			// Create a BinaryBitmap from the image
+			bitmap, err := gozxing.NewBinaryBitmapFromImage(img)
+			if err != nil {
+				return false, err
+			}
+
+			// Create a QR code reader
+			qrReader := qrcode.NewQRCodeReader()
+
+			// Try to decode the QR code from the BinaryBitmap
+			_, err = qrReader.Decode(bitmap, nil)
+			if err == nil {
+				return true, nil // QR code found
 			}
 		}
 	}
 
-	return false, nil
-}
-
-// CheckImageForQRCode checks if an image file contains a QR code.
-func CheckImageForQRCode(imagePath string) (bool, error) {
-	file, err := os.Open(imagePath)
-	if err != nil {
-		return false, err
-	}
-	defer file.Close()
-
-	img, err := jpeg.Decode(file)
-	if err != nil {
-		return false, err
-	}
-
-	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
-	if err != nil {
-		return false, err
-	}
-
-	qrReader := qrcode.NewQRCodeReader()
-	_, err = qrReader.Decode(bmp, nil)
-	if err != nil {
-		return false, nil // No QR code found
-	}
-
-	return true, nil // QR code found
+	return false, nil // QR code not found
 }
