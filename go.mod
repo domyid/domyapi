@@ -10,6 +10,7 @@ require (
 	github.com/google/go-querystring v1.1.0
 	github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5
 	github.com/makiuchi-d/gozxing v0.1.1
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/unidoc/unipdf/v3 v3.61.0
 	go.mongodb.org/mongo-driver v1.15.1
 	golang.org/x/oauth2 v0.11.0

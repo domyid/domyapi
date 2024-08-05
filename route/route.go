@@ -37,6 +37,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetNilaiMahasiswa(w, r)
 	case method == "POST" && path == "/BAP":
 		controller.GetBAP(w, r)
+	case method == "POST" && path == "/ApproveBAP":
+		controller.AddSignatureQrCode(w, r)
 	case method == "GET" && path == "/data/list/ta":
 		controller.GetListTugasAkhirMahasiswa(w, r)
 	case method == "POST" && path == "/data/list/bimbingan":

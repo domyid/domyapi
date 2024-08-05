@@ -559,6 +559,87 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, bapList)
 }
 
+func AddSignatureQrCode(w http.ResponseWriter, r *http.Request) {
+	// Check header for valid nohp
+	noHp := r.Header.Get("nohp")
+	if noHp != "6285262774355" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Parse request body
+	var requestData struct {
+		FileName string `json:"file_name"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch GitHub credentials from database
+	gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
+	if err != nil {
+		http.Error(w, "Failed to fetch GitHub credentials from database", http.StatusInternalServerError)
+		return
+	}
+
+	// Initialize GitHub client
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: gh.GitHubAccessToken},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+
+	// Define GitHub path
+	gitHubPath := "2023-2/" + requestData.FileName
+
+	// Fetch the file from GitHub
+	fileContent, _, _, err := client.Repositories.GetContents(ctx, "repoulbi", "buktiajar", gitHubPath, nil)
+	if err != nil {
+		http.Error(w, "Failed to fetch PDF from GitHub: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	content, err := fileContent.GetContent()
+	if err != nil {
+		http.Error(w, "Failed to get content from GitHub response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	pdfData, err := base64.StdEncoding.DecodeString(content)
+	if err != nil {
+		http.Error(w, "Failed to decode base64 PDF content: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Add QR code to the PDF
+	modifiedPdfData, err := pdf.AddQrCodeToPdf(pdfData)
+	if err != nil {
+		http.Error(w, "Error adding QR code to PDF: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Encode the modified PDF to base64
+	encodedModifiedPdf := base64.StdEncoding.EncodeToString(modifiedPdfData)
+
+	// Update the file in GitHub
+	options := &github.RepositoryContentFileOptions{
+		Message: github.String("Add signature QR code to BAP PDF"),
+		Content: []byte(encodedModifiedPdf),
+		SHA:     github.String(fileContent.GetSHA()),
+		Branch:  github.String("main"),
+	}
+	_, _, err = client.Repositories.UpdateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
+	if err != nil {
+		http.Error(w, "Failed to upload updated PDF to GitHub: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, "QR code added and PDF updated successfully")
+}
+
 func GetListTugasAkhirMahasiswa(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil no_hp dari header
 	noHp := req.Header.Get("nohp")
