@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -536,6 +537,10 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		filePath := "/buktiajar/2023-2/" + fileName
+		additionalPath := "/sk/2324-2/SK 130_Pengampu Matakuliah ULBI Semester Genap 2023-2024.pdf"
+		combinedPath := additionalPath + "&" + filePath
+		filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
+		strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
 		strPol.WriteString("https://repo.ulbi.ac.id/view/" + filePath)
 
 		status := "Belum di approve"
