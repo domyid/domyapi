@@ -82,7 +82,7 @@ func main() {
 	}
 
 	// Generate PDF
-	buf, fileName, err := pdf.GenerateBAPPDFWithoutSignature(data)
+	buf, fileName, err := pdf.GenerateBAPPDF(data)
 	if err != nil {
 		fmt.Println("Error generating PDF:", err)
 		return

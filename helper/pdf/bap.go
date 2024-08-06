@@ -3,72 +3,17 @@ package domyApi
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"strconv"
 	"time"
 
 	models "github.com/domyid/domyapi/model"
 	"github.com/jung-kurt/gofpdf"
-	"github.com/skip2/go-qrcode"
 )
 
 // CreateHeaderBAP generates the header for the BAP PDF
 const SourceURL = "https://siakad.ulbi.ac.id/siakad/rep_perkuliahan"
 const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
-
-// GenerateQrCode generates a QR code image and saves it as a PNG file
-func GenerateQrCode(content string, size int) (string, error) {
-	qrFilename := "qrcode.png"
-	err := qrcode.WriteFile(content, qrcode.Medium, size, qrFilename)
-	if err != nil {
-		return "", err
-	}
-	return qrFilename, nil
-}
-
-// AddQrCodeToPdf adds a QR code to an existing PDF file
-func AddQrCodeToPdf(pdfData []byte) ([]byte, error) {
-	// QR code settings
-	const (
-		qrContent = "https://qrcg-free-editor.qr-code-generator.com/main/assets/images/websiteQRCode_noFrame.png"
-		qrSize    = 30
-		xPos      = 137.0
-		yPos      = 200.0
-	)
-
-	// Generate QR code image
-	qrFilename, err := GenerateQrCode(qrContent, qrSize)
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(qrFilename) // Clean up the QR code image file after use
-
-	// Load the input PDF data to a temporary file
-	inputFilename := "input.pdf"
-	err = ioutil.WriteFile(inputFilename, pdfData, 0644)
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(inputFilename) // Clean up the temporary input file after use
-
-	// Create a new PDF
-	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.SetMargins(0, 0, 0)
-	pdf.AddPage()
-
-	// Add QR code to the page
-	pdf.ImageOptions(qrFilename, xPos, yPos, float64(qrSize), float64(qrSize), false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
-
-	// Output PDF to a buffer
-	buf := new(bytes.Buffer)
-	err = pdf.Output(buf)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
+const SignatureURL = "https://qrcg-free-editor.qr-code-generator.com/main/assets/images/websiteQRCode_noFrame.png"
 
 func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	pdf := gofpdf.New("P", "mm", "A4", "")
@@ -105,7 +50,30 @@ func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	return pdf
 }
 
-func GenerateBAPPDFWithoutSignature(data models.BAP) (*bytes.Buffer, string, error) {
+func AddSignature(pdf *gofpdf.Fpdf) *gofpdf.Fpdf {
+	// Menambahkan tempat tanda tangan dan QR code
+	tanggalTerkini := "Bandung, " + getFormattedDate(time.Now())
+	pdf.Ln(10)
+	pdf.SetFont("Times", "", 10)
+	pdf.SetX(-68) // Set posisi tanda tangan di sebelah kanan
+	pdf.CellFormat(0, 5, tanggalTerkini, "", 1, "L", false, 0, "")
+	pdf.SetX(-75)
+	pdf.CellFormat(0, 5, "Ketua Prodi D4 Teknik Informatika", "", 1, "L", false, 0, "")
+
+	// Menambahkan QR code menggunakan ImageCustomize
+	ImageCustomize(pdf, "./signature_qrcode.png", SignatureURL, pdf.GetX()+140, pdf.GetY()+15, 20, 20, 20, 20, 0)
+
+	pdf.Ln(40) // Jarak untuk QR code
+
+	pdf.SetX(-65)
+	pdf.CellFormat(0, 5, "RONI ANDARSYAH", "", 1, "L", false, 0, "")
+	pdf.SetX(-62)
+	pdf.CellFormat(0, 5, "NIDN 0420058801", "", 1, "L", false, 0, "")
+
+	return pdf
+}
+
+func GenerateBAPPDF(data models.BAP) (*bytes.Buffer, string, error) {
 	Text := []string{
 		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
 		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
@@ -193,19 +161,8 @@ func GenerateBAPPDFWithoutSignature(data models.BAP) (*bytes.Buffer, string, err
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
-	// Menambahkan tempat tanda tangan tanpa QR code
-	tanggalTerkini := "Bandung, " + getFormattedDate(time.Now())
-	pdf.Ln(10)
-	pdf.SetFont("Times", "", 10)
-	pdf.SetX(-68) // Set posisi tanda tangan di sebelah kanan
-	pdf.CellFormat(0, 5, tanggalTerkini, "", 1, "L", false, 0, "")
-	pdf.SetX(-75)
-	pdf.CellFormat(0, 5, "Ketua Prodi D4 Teknik Informatika", "", 1, "L", false, 0, "")
-	pdf.Ln(30)
-	pdf.SetX(-65)
-	pdf.CellFormat(0, 5, "RONI ANDARSYAH", "", 1, "L", false, 0, "")
-	pdf.SetX(-62)
-	pdf.CellFormat(0, 5, "NIDN 0420058801", "", 1, "L", false, 0, "")
+	// Panggil fungsi AddSignature di bawah tabel nilai
+	pdf = AddSignature(pdf)
 
 	// Save the PDF to a buffer without signature
 	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
