@@ -602,23 +602,15 @@ func AddSignatureQrCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get content directly as byte array
 	content, err := fileContent.GetContent()
 	if err != nil {
 		http.Error(w, "Failed to get content from GitHub response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Debugging log
-	log.Println("GitHub content:", content)
-
-	pdfData, err := base64.StdEncoding.DecodeString(content)
-	if err != nil {
-		http.Error(w, "Failed to decode base64 PDF content: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Debugging log
-	log.Println("Decoded PDF data:", pdfData)
+	// Convert content to byte array
+	pdfData := []byte(content)
 
 	// Add QR code to the PDF
 	modifiedPdfData, err := pdf.AddQrCodeToPdf(pdfData)
@@ -627,16 +619,10 @@ func AddSignatureQrCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Encode the modified PDF to base64
-	encodedModifiedPdf := base64.StdEncoding.EncodeToString(modifiedPdfData)
-
-	// Debugging log
-	log.Println("Encoded modified PDF data:", encodedModifiedPdf)
-
 	// Update the file in GitHub
 	options := &github.RepositoryContentFileOptions{
 		Message: github.String("Add signature QR code to BAP PDF"),
-		Content: []byte(encodedModifiedPdf),
+		Content: modifiedPdfData,
 		SHA:     github.String(fileContent.GetSHA()),
 		Branch:  github.String("main"),
 	}
