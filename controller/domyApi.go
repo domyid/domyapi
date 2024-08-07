@@ -273,7 +273,7 @@ func GetRiwayatPerkuliahan(w http.ResponseWriter, r *http.Request) {
 	var dataID string
 	for _, jadwal := range listJadwal {
 		if jadwal.Kelas == requestData.Kelas {
-			dataID = jadwal.DataID
+			dataID = jadwal.DataIDKelas
 			break
 		}
 	}
@@ -359,7 +359,7 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 	var dataID string
 	for _, jadwal := range listJadwal {
 		if jadwal.Kelas == requestData.Kelas {
-			dataID = jadwal.DataID
+			dataID = jadwal.DataIDKelas
 			break
 		}
 	}
@@ -498,16 +498,17 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 	var bapList []map[string]string
 
 	for _, jadwal := range listJadwal {
-		dataID := jadwal.DataID
+		dataID := jadwal.DataIDKelas
 		kode := jadwal.Kode
 		programStudi := jadwal.ProgramStudi
 		mataKuliah := jadwal.MataKuliah
 		sks := jadwal.SKS
 		smt := jadwal.Smt
 		kelas := jadwal.Kelas
+		dataIDDosen := jadwal.DataIIDDosen
 
 		// Check if BAP is approved by matching dataID
-		approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"dataid": dataID})
+		approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"dataid": dataIDDosen})
 		if err != nil || !approval.Status {
 			at.WriteJSON(w, http.StatusForbidden, "BAP belum di approval")
 			return

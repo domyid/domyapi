@@ -79,9 +79,9 @@ func FetchJadwalMengajar(noHp, periode string) ([]model.JadwalMengajar, error) {
 
 		// Ambil data ID dari elemen href
 		href, exists := s.Find("td").Eq(10).Find("a").Attr("href")
-		var dataID string
+		var dataIDKelas string
 		if exists {
-			dataID = strings.TrimPrefix(href, "/siakad/data_kelas/detail/")
+			dataIDKelas = strings.TrimPrefix(href, "/siakad/data_kelas/detail/")
 		}
 
 		jadwal := model.JadwalMengajar{
@@ -95,7 +95,8 @@ func FetchJadwalMengajar(noHp, periode string) ([]model.JadwalMengajar, error) {
 			Hari:         hari,
 			Waktu:        waktu,
 			Ruang:        ruang,
-			DataID:       dataID,
+			DataIDKelas:  dataIDKelas,
+			DataIIDDosen: tokenData.UserID,
 		}
 		listJadwal = append(listJadwal, jadwal)
 	})
@@ -190,7 +191,7 @@ func FetchAbsensiKelas(noHp, kelas, periode string) ([]model.Absensi, error) {
 	var dataID string
 	for _, jadwal := range listJadwal {
 		if jadwal.Kelas == kelas {
-			dataID = jadwal.DataID
+			dataID = jadwal.DataIDKelas
 			break
 		}
 	}

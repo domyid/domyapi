@@ -151,7 +151,8 @@ type JadwalMengajar struct {
 	Hari         string `json:"hari"`
 	Waktu        string `json:"waktu"`
 	Ruang        string `json:"ruang"`
-	DataID       string `json:"dataID"`
+	DataIDKelas  string `json:"dataIDKelas"`
+	DataIIDDosen string `json:"dataIIDDosen"`
 }
 
 type RiwayatMengajar struct {
