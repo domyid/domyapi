@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"time"
 
 	pdf "github.com/domyid/domyapi/helper/pdf"
 	model "github.com/domyid/domyapi/model"
@@ -79,13 +82,39 @@ func main() {
 				Grade: "A",
 			},
 		},
+		ProgramStudi: "D4 Teknik Informatika",
 	}
 
-	// Generate PDF
-	buf, fileName, err := pdf.GenerateBAPPDFwithoutsignature(data)
-	if err != nil {
-		fmt.Println("Error generating PDF:", err)
-		return
+	var buf *bytes.Buffer
+	var fileName string
+	var err error
+
+	if data.ProgramStudi == "D4 Teknik Informatika" {
+		// Dummy SignatureData
+		signature := model.SignatureData{
+			PenandaTangan:   "Roni Andarsyah",
+			DocName:         "BAP IF123 Pemrograman Go.pdf",
+			PemilikDocument: "Universitas Logistik dan Bisnis Internasional",
+		}
+
+		// Create QR code link
+		docID := generateDocID(time.Now().String())
+		token := pdf.CreateToken(docID, "https://mrt.ulbi.ac.id/token/create", signature)
+		qrCodeLink := pdf.GenerateLink(token)
+
+		// Generate PDF with signature
+		buf, fileName, err = pdf.GenerateBAPPDF(data, qrCodeLink)
+		if err != nil {
+			fmt.Println("Error generating PDF:", err)
+			return
+		}
+	} else {
+		// Generate PDF without signature
+		buf, fileName, err = pdf.GenerateBAPPDFwithoutsignature(data)
+		if err != nil {
+			fmt.Println("Error generating PDF:", err)
+			return
+		}
 	}
 
 	// Save to file
@@ -110,9 +139,9 @@ func saveToFile(buf *bytes.Buffer, fileName string) error {
 	return err
 }
 
-// func generateDocID(time string) string {
-// 	hash := sha256.New()
-// 	hash.Write([]byte(time))
-// 	hashedBytes := hash.Sum(nil)
-// 	return hex.EncodeToString(hashedBytes)
-// }
+func generateDocID(time string) string {
+	hash := sha256.New()
+	hash.Write([]byte(time))
+	hashedBytes := hash.Sum(nil)
+	return hex.EncodeToString(hashedBytes)
+}

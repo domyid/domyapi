@@ -383,7 +383,7 @@ func GetNilaiMahasiswa(w http.ResponseWriter, r *http.Request) {
 func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 	// Check header for valid nohp
 	noHp := r.Header.Get("nohp")
-	if noHp != "6285262774355" {
+	if noHp != "6285220267364" {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}

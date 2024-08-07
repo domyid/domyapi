@@ -116,26 +116,29 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// Insert or update ApprovalBAP collection
+		// Check if ApprovalBAP document already exists
 		dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": reqLogin.Email})
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, "Failed to fetch dosen data")
 			return
 		}
 
-		approvalBAP := model.ApprovalBAP{
-			Status:     false,
-			DataID:     dosen.DataID,
-			EmailDosen: reqLogin.Email,
-		}
-
-		_, err = atdb.InsertOneDoc(config.Mongoconn, "approvalbap", approvalBAP)
+		_, err = atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": reqLogin.Email})
 		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, "Failed to insert approval BAP data")
-			return
+			// Jika approvalBAP tidak ditemukan, insert data baru
+			approvalBAP := model.ApprovalBAP{
+				Status:     false,
+				DataID:     dosen.DataID,
+				EmailDosen: reqLogin.Email,
+			}
+
+			_, insertErr := atdb.InsertOneDoc(config.Mongoconn, "approvalbap", approvalBAP)
+			if insertErr != nil {
+				at.WriteJSON(w, http.StatusInternalServerError, "Failed to insert approval BAP data")
+				return
+			}
 		}
 	}
-
 	// Cek apakah user_id sudah ada di database
 	existingTokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": reqLogin.Email})
 	if err != nil {
