@@ -384,7 +384,7 @@ func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 	// Check header for valid nohp
 	noHp := r.Header.Get("nohp")
 	if noHp != "6285220267364" {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		http.Error(w, "Kamu bukan Kaprodi ya! Silahkan hubungi kaprodi untuk approve BAP", http.StatusForbidden)
 		return
 	}
 
@@ -399,7 +399,7 @@ func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestData.EmailDosen == "" {
-		http.Error(w, "Email Dosen is required", http.StatusBadRequest)
+		http.Error(w, "Isi dengan email dosen terkait", http.StatusBadRequest)
 		return
 	}
 
@@ -427,7 +427,7 @@ func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	at.WriteJSON(w, http.StatusOK, "BAP approved successfully")
+	at.WriteJSON(w, http.StatusOK, "BAP berhasil di Approve! hubungi dosen terkait untuk cetak BAP nya")
 }
 
 var (
@@ -616,7 +616,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 
 		if fileExists {
 			options := &github.RepositoryContentFileOptions{
-				Message: github.String("Update BAP PDF: " + fileName),
+				Message: github.String("Update file " + fileName),
 				Content: buf.Bytes(),
 				SHA:     github.String(fileSHA),
 				Branch:  github.String("main"),
@@ -624,7 +624,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			_, _, err = client.Repositories.UpdateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
 		} else {
 			options := &github.RepositoryContentFileOptions{
-				Message: github.String("Add BAP PDF: " + fileName),
+				Message: github.String("Add file " + fileName),
 				Content: buf.Bytes(),
 				Branch:  github.String("main"),
 			}

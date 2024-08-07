@@ -117,7 +117,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// Check if ApprovalBAP document already exists
-		dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": reqLogin.Email})
+		_, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": reqLogin.Email})
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, "Failed to fetch dosen data")
 			return
@@ -128,7 +128,6 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			// Jika approvalBAP tidak ditemukan, insert data baru
 			approvalBAP := model.ApprovalBAP{
 				Status:     false,
-				DataID:     dosen.DataID,
 				EmailDosen: reqLogin.Email,
 			}
 
