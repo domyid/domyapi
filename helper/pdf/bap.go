@@ -2,18 +2,20 @@ package domyApi
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
-	models "github.com/domyid/domyapi/model"
+	client "github.com/domyid/domyapi/client"
+	model "github.com/domyid/domyapi/model"
 	"github.com/jung-kurt/gofpdf"
+	"github.com/skip2/go-qrcode"
 )
 
 // CreateHeaderBAP generates the header for the BAP PDF
 const SourceURL = "https://siakad.ulbi.ac.id/siakad/rep_perkuliahan"
 const InfoImageURL = "https://home.ulbi.ac.id/ulbi.png"
-const SignatureURL = "https://qrcg-free-editor.qr-code-generator.com/main/assets/images/websiteQRCode_noFrame.png"
 
 func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	pdf := gofpdf.New("P", "mm", "A4", "")
@@ -50,7 +52,17 @@ func CreateHeaderBAP(Text []string, x float64) *gofpdf.Fpdf {
 	return pdf
 }
 
-func AddSignature(pdf *gofpdf.Fpdf) *gofpdf.Fpdf {
+func createQRCode(link string, filename string) error {
+	// Generate QR code
+	err := qrcode.WriteFile(link, qrcode.Highest, 256, filename)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("QR code generated and saved to %s\n", filename)
+	return nil
+}
+
+func addSignature(pdf *gofpdf.Fpdf, qrFileName string) *gofpdf.Fpdf {
 	// Menambahkan tempat tanda tangan dan QR code
 	tanggalTerkini := "Bandung, " + getFormattedDate(time.Now())
 	pdf.Ln(10)
@@ -60,10 +72,15 @@ func AddSignature(pdf *gofpdf.Fpdf) *gofpdf.Fpdf {
 	pdf.SetX(-75)
 	pdf.CellFormat(0, 5, "Ketua Prodi D4 Teknik Informatika", "", 1, "L", false, 0, "")
 
-	// Menambahkan QR code menggunakan ImageCustomize
-	ImageCustomize(pdf, "./signature_qrcode.png", SignatureURL, pdf.GetX()+140, pdf.GetY()+15, 20, 20, 20, 20, 0)
+	// Set Y-coordinate explicitly for QR code
+	pdf.SetY(pdf.GetY() + 5) // Adjust this value as needed for spacing
 
-	pdf.Ln(40) // Jarak untuk QR code
+	// Menambahkan QR code
+	pdf.SetX(-63)
+	pdf.Image(qrFileName, pdf.GetX(), pdf.GetY(), 30, 30, false, "", 0, "")
+
+	// Set Y-coordinate explicitly for signature text
+	pdf.SetY(pdf.GetY() + 35) // Adjust this value as needed for spacing
 
 	pdf.SetX(-65)
 	pdf.CellFormat(0, 5, "RONI ANDARSYAH", "", 1, "L", false, 0, "")
@@ -73,7 +90,7 @@ func AddSignature(pdf *gofpdf.Fpdf) *gofpdf.Fpdf {
 	return pdf
 }
 
-func GenerateBAPPDF(data models.BAP) (*bytes.Buffer, string, error) {
+func GenerateBAPPDF(data model.BAP, qrCodeLink string) (*bytes.Buffer, string, error) {
 	Text := []string{
 		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
 		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
@@ -161,10 +178,116 @@ func GenerateBAPPDF(data models.BAP) (*bytes.Buffer, string, error) {
 		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
 	}
 
-	// Panggil fungsi AddSignature di bawah tabel nilai
-	pdf = AddSignature(pdf)
+	// Generate QR code
+	qrFileName := "signature_qrcode.png"
+	err := createQRCode(qrCodeLink, qrFileName)
+	if err != nil {
+		return nil, "", err
+	}
 
-	// Save the PDF to a buffer without signature
+	// Add the signature section with QR code
+	pdf = addSignature(pdf, qrFileName)
+
+	// Save the PDF to a buffer
+	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
+	var buf bytes.Buffer
+	err = pdf.Output(&buf)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &buf, fileName, nil
+}
+
+func GenerateBAPPDFwithoutsignature(data model.BAP) (*bytes.Buffer, string, error) {
+	Text := []string{
+		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
+		"Berita Acara Perkuliahan dan Absensi Perkuliahan",
+	}
+
+	width := []float64{60, 5, 70}
+	color := []int{255, 255, 153}
+	align := []string{"J", "C", "J"}
+	yCoordinates := []float64{40, 45, 50}
+
+	pdf := CreateHeaderBAP(Text, 90)
+
+	// Header Information
+	headerInfo := [][]string{
+		{"Kode Matakuliah/Nama Matakuliah", ":", fmt.Sprintf("%s/%s", data.Kode, data.MataKuliah)},
+		{"Kelas", ":", data.Kelas},
+		{"Semester/SKS", ":", fmt.Sprintf("%s/%s SKS", data.SMT, data.SKS)},
+	}
+
+	pdf = SetTableContentCustomY(pdf, headerInfo, width, align, yCoordinates)
+
+	// Add Riwayat Mengajar table
+	pdf.Ln(5)
+	pdf = SetMergedCell(pdf, "Tabel Log Aktivitas", "J", 150, color)
+	headers := []string{"Pertemuan", "Tanggal", "Jam", "Rencana Materi", "Realisasi Materi"}
+	widths := []float64{20, 30, 20, 40, 40}
+	align = []string{"C", "C", "C", "C", "C"}
+	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
+	for _, item := range data.RiwayatMengajar {
+		row := []string{
+			item.Pertemuan,
+			item.Tanggal,
+			item.Jam,
+			truncateToThreeWords(item.RencanaMateri),
+			truncateToThreeWords(item.RealisasiMateri),
+		}
+		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
+	}
+
+	// Add Absensi Kelas table
+	pdf.Ln(10)
+	pdf = SetMergedCell(pdf, "Tabel Presensi", "J", 150, color)
+	headers = []string{"No", "NIM", "Nama", "Pertemuan", "Alfa", "Hadir", "Ijin", "Sakit", "Presentase"}
+	widths = []float64{10, 20, 40, 20, 10, 10, 10, 10, 20}
+	align = []string{"C", "C", "L", "C", "C", "C", "C", "C", "C"}
+	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
+	for _, item := range data.AbsensiKelas {
+		row := []string{
+			item.No,
+			item.NIM,
+			item.Nama,
+			item.Pertemuan,
+			item.Alfa,
+			item.Hadir,
+			item.Ijin,
+			item.Sakit,
+			item.Presentase,
+		}
+		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
+	}
+
+	// Add List Nilai table
+	pdf.Ln(10)
+	pdf = SetMergedCell(pdf, "Tabel Nilai Akhir", "J", 150, color)
+	headers = []string{"No", "NIM", "Nama", "Hadir", "ATS", "AAS", "Nilai", "Grade"}
+	widths = []float64{10, 20, 40, 15, 15, 15, 15, 20}
+	align = []string{"C", "C", "L", "C", "C", "C", "C", "C"}
+	pdf = SetHeaderTable(pdf, headers, widths, []int{135, 206, 235})
+	for _, item := range data.ListNilai {
+		hadir, _ := strconv.ParseFloat(item.Hadir, 64)
+		ats, _ := strconv.ParseFloat(item.ATS, 64)
+		aas, _ := strconv.ParseFloat(item.AAS, 64)
+		nilai, _ := strconv.ParseFloat(item.Nilai, 64)
+
+		row := []string{
+			item.No,
+			item.NIM,
+			item.Nama,
+			fmt.Sprintf("%.2f", hadir),
+			fmt.Sprintf("%.2f", ats),
+			fmt.Sprintf("%.2f", aas),
+			fmt.Sprintf("%.2f", nilai),
+			item.Grade,
+		}
+		pdf = SetTableContent(pdf, [][]string{row}, widths, align)
+	}
+
+	// Save the PDF to a buffer
 	fileName := fmt.Sprintf("BAP-%s-%s.pdf", sanitizeFileName(data.MataKuliah), sanitizeFileName(data.Kelas))
 	var buf bytes.Buffer
 	err := pdf.Output(&buf)
@@ -173,4 +296,28 @@ func GenerateBAPPDF(data models.BAP) (*bytes.Buffer, string, error) {
 	}
 
 	return &buf, fileName, nil
+}
+
+func CreateToken(docID, url string, data model.SignatureData) string {
+	resp := new(model.TokenResp)
+	body := new(model.RequestData)
+	body.Id = docID
+	body.Data = data
+
+	res, err := client.CreateRequestHTTP().
+		SetBody(body).
+		Post(url)
+
+	if err != nil {
+		return "error ni kakak sistem akademiknya silahkan hubungi admin yaaaaa........"
+	}
+
+	defer res.Body.Close()
+	_ = json.Unmarshal(res.Bytes(), &resp)
+
+	return resp.Token
+}
+
+func GenerateLink(token string) string {
+	return fmt.Sprintf("https://mrt.ulbi.ac.id/token/get?token=%s", token)
 }

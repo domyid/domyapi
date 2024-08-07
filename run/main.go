@@ -82,7 +82,7 @@ func main() {
 	}
 
 	// Generate PDF
-	buf, fileName, err := pdf.GenerateBAPPDF(data)
+	buf, fileName, err := pdf.GenerateBAPPDFwithoutsignature(data)
 	if err != nil {
 		fmt.Println("Error generating PDF:", err)
 		return
@@ -109,3 +109,10 @@ func saveToFile(buf *bytes.Buffer, fileName string) error {
 	_, err = buf.WriteTo(file)
 	return err
 }
+
+// func generateDocID(time string) string {
+// 	hash := sha256.New()
+// 	hash.Write([]byte(time))
+// 	hashedBytes := hash.Sum(nil)
+// 	return hex.EncodeToString(hashedBytes)
+// }

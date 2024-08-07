@@ -84,6 +84,7 @@ type Dosen struct {
 	NoHp          string `bson:"no_hp,omitempty" json:"no_hp,omitempty"`
 	EmailKampus   string `json:"email_kampus,omitempty"`
 	EmailPribadi  string `json:"email_pribadi,omitempty"`
+	DataID        string `json:"dataID"`
 }
 
 type Bimbingan struct {
@@ -192,6 +193,7 @@ type Absensi struct {
 
 type BAP struct {
 	Kode            string            `json:"kode"`
+	ProgramStudi    string            `json:"program_studi"`
 	MataKuliah      string            `json:"mata_kuliah"`
 	SKS             string            `json:"sks"`
 	SMT             string            `json:"smt"`
@@ -199,6 +201,12 @@ type BAP struct {
 	RiwayatMengajar []RiwayatMengajar `json:"riwayatMengajar"`
 	AbsensiKelas    []Absensi         `json:"absensiKelas"`
 	ListNilai       []Nilai           `json:"listNilai"`
+}
+
+type ApprovalBAP struct {
+	Status     bool   `json:"status"`
+	DataID     string `json:"dataid"`
+	EmailDosen string `json:"email_dosen"`
 }
 
 type BAPResponse struct {
@@ -247,4 +255,19 @@ type Ghcreates struct {
 	GitHubAccessToken string `bson:"githubaccesstoken,omitempty" json:"githubaccesstoken,omitempty"`
 	GitHubAuthorName  string `bson:"githubauthorname,omitempty" json:"githubauthorname,omitempty"`
 	GitHubAuthorEmail string `bson:"githubauthoremail,omitempty" json:"githubauthoremail,omitempty"`
+}
+
+type SignatureData struct {
+	PenandaTangan   string `json:"penanda-tangan"`
+	DocName         string `json:"doc-name"`
+	PemilikDocument string `json:"pemilik_document"`
+}
+
+type RequestData struct {
+	Id   string        `json:"id"`
+	Data SignatureData `json:"data"`
+}
+
+type TokenResp struct {
+	Token string `json:"token"`
 }

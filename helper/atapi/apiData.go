@@ -2,6 +2,7 @@ package domyApi
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	model "github.com/domyid/domyapi/model"
@@ -82,6 +83,19 @@ func ExtractDosenData(cookies map[string]string) (model.Dosen, error) {
 	emailKampus := strings.TrimSpace(doc.Find(".input-emailkampus").Text())
 	emailPribadi := strings.TrimSpace(doc.Find(".input-email").Text())
 
+	// Ekstrak dataid dari elemen yang sesuai
+	dataid, exists := doc.Find(".profile-nav li.active a").Attr("href")
+	if !exists {
+		return model.Dosen{}, fmt.Errorf("dataid not found")
+	}
+
+	// Ambil angka unik dari href
+	parts := strings.Split(dataid, "/")
+	if len(parts) == 0 {
+		return model.Dosen{}, fmt.Errorf("invalid dataid format")
+	}
+	dataid = parts[len(parts)-1]
+
 	// Buat instance Dosen
 	dosen := model.Dosen{
 		NIP:           nip,
@@ -96,6 +110,7 @@ func ExtractDosenData(cookies map[string]string) (model.Dosen, error) {
 		NoHp:          noHp,
 		EmailKampus:   emailKampus,
 		EmailPribadi:  emailPribadi,
+		DataID:        dataid, // Tambahkan dataID ke struct Dosen
 	}
 
 	return dosen, nil
