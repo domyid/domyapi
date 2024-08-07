@@ -549,7 +549,7 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Fetch dosen data based on dataID
-		dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", bson.M{"dataid": dataID})
+		dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", bson.M{"email": dataIDDosen})
 		if err != nil {
 			http.Error(w, "Failed to fetch Dosen data", http.StatusInternalServerError)
 			return
