@@ -614,18 +614,23 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			fileSHA = *fileContent.SHA
 		}
 
-		options := &github.RepositoryContentFileOptions{
-			Message: github.String("Add BAP PDF"),
-			Content: buf.Bytes(),
-			SHA:     nil,
-			Branch:  github.String("main"),
-		}
-
 		if fileExists {
-			options.SHA = github.String(fileSHA)
+			options := &github.RepositoryContentFileOptions{
+				Message: github.String("Update BAP PDF: " + fileName),
+				Content: buf.Bytes(),
+				SHA:     github.String(fileSHA),
+				Branch:  github.String("main"),
+			}
+			_, _, err = client.Repositories.UpdateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
+		} else {
+			options := &github.RepositoryContentFileOptions{
+				Message: github.String("Add BAP PDF: " + fileName),
+				Content: buf.Bytes(),
+				Branch:  github.String("main"),
+			}
+			_, _, err = client.Repositories.CreateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
 		}
 
-		_, _, err = client.Repositories.CreateFile(ctx, "repoulbi", "buktiajar", gitHubPath, options)
 		if err != nil {
 			http.Error(w, "Failed to upload/update PDF on GitHub: "+err.Error(), http.StatusInternalServerError)
 			return
