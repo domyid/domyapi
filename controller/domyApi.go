@@ -403,13 +403,6 @@ func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the Dosen record to get the DataID
-	dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": requestData.EmailDosen})
-	if err != nil {
-		http.Error(w, "Data Dosen tidak ada", http.StatusNotFound)
-		return
-	}
-
 	// Update approval status in the `approvalbap` collection
 	update := bson.M{
 		"$set": bson.M{
@@ -417,10 +410,15 @@ func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	filter := bson.M{"dataid": dosen.DataID, "emaildosen": requestData.EmailDosen}
+	filter := bson.M{"emaildosen": requestData.EmailDosen}
 	result, err := atdb.UpdateOneDoc(config.Mongoconn, "approvalbap", filter, update)
 	if err != nil {
 		http.Error(w, "Failed to update approval status", http.StatusInternalServerError)
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		http.Error(w, "No matching document found", http.StatusNotFound)
 		return
 	}
 
