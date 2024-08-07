@@ -506,19 +506,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		smt := jadwal.Smt
 		kelas := jadwal.Kelas
 
-		// Check if BAP is approved based on email_dosen
-		dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", bson.M{"dataid": dataID})
-		if err != nil {
-			http.Error(w, "Failed to fetch Dosen data", http.StatusInternalServerError)
-			return
-		}
-
-		approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": dosen.Email})
-		if err != nil || !approval.Status {
-			at.WriteJSON(w, http.StatusForbidden, "BAP belum di approval")
-			return
-		}
-
 		// Fetch list absensi using the data ID
 		riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
 		if err != nil {
@@ -540,6 +527,13 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Check if BAP is approved
+		approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"dataid": dataID})
+		if err != nil || !approval.Status {
+			at.WriteJSON(w, http.StatusForbidden, "BAP belum di approval")
+			return
+		}
+
 		// Combine results
 		result := model.BAP{
 			Kode:            kode,
@@ -551,6 +545,13 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 			RiwayatMengajar: riwayatMengajar,
 			AbsensiKelas:    absensiKelas,
 			ListNilai:       listNilai,
+		}
+
+		// Fetch dosen data based on dataID
+		dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", bson.M{"dataid": dataID})
+		if err != nil {
+			http.Error(w, "Failed to fetch Dosen data", http.StatusInternalServerError)
+			return
 		}
 
 		var buf *bytes.Buffer
