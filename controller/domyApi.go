@@ -507,8 +507,8 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		kelas := jadwal.Kelas
 		dataIDDosen := jadwal.DataIIDDosen
 
-		// Check if BAP is approved by matching dataID
-		approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"dataid": dataIDDosen})
+		// Check if BAP is approved by matching email
+		approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": dataIDDosen})
 		if err != nil || !approval.Status {
 			at.WriteJSON(w, http.StatusForbidden, "BAP belum di approval")
 			return
