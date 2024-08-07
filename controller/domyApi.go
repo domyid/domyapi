@@ -417,9 +417,15 @@ func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	_, err = atdb.UpdateOneDoc(config.Mongoconn, "approvalbap", primitive.M{"dataid": dosen.DataID, "email_dosen": requestData.EmailDosen}, update)
+	filter := bson.M{"dataid": dosen.DataID, "emaildosen": requestData.EmailDosen}
+	result, err := atdb.UpdateOneDoc(config.Mongoconn, "approvalbap", filter, update)
 	if err != nil {
 		http.Error(w, "Failed to update approval status", http.StatusInternalServerError)
+		return
+	}
+
+	if result.ModifiedCount == 0 {
+		http.Error(w, "No document was updated", http.StatusInternalServerError)
 		return
 	}
 
