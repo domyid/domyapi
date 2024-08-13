@@ -439,29 +439,17 @@ func CekStatusApproval(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mengambil token dari database berdasarkan nohp
-	tokenData, err := atdb.GetOneDoc[struct {
-		UserID string `bson:"user_id"`
-	}](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
 	if err != nil || tokenData.UserID == "" {
 		fmt.Println("Error Fetching Token or User ID is empty:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
 		return
 	}
 
-	// Mengambil email_dosen berdasarkan user_id dari collection users
-	userData, err := atdb.GetOneDoc[struct {
-		EmailDosen string `bson:"email_dosen"`
-	}](config.Mongoconn, "users", primitive.M{"user_id": tokenData.UserID})
-	if err != nil || userData.EmailDosen == "" {
-		fmt.Println("Error Fetching User Data or Email Dosen is empty:", err)
-		at.WriteJSON(w, http.StatusNotFound, "Data pengguna tidak ditemukan!")
-		return
-	}
-
-	// Fetch approval status dari collection approvalbap berdasarkan email dosen
+	// Mencari email dosen (user_id) di collection approvalbap berdasarkan nohp
 	approvalData, err := atdb.GetOneDoc[struct {
 		Status bool `bson:"status"`
-	}](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": userData.EmailDosen})
+	}](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": tokenData.UserID})
 	if err != nil {
 		fmt.Println("Error Fetching Approval Status:", err)
 		at.WriteJSON(w, http.StatusNotFound, "Data approval tidak ditemukan!")
