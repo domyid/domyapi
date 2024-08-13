@@ -138,6 +138,13 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
+
+	// Check if noHp (phone number) is available
+	if noHp == "" {
+		at.WriteJSON(w, http.StatusBadRequest, "Nomor telepon tidak ditemukan. Silakan lengkapi data Anda di Siakad sebelum melanjutkan.")
+		return
+	}
+
 	// Cek apakah user_id sudah ada di database
 	existingTokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": reqLogin.Email})
 	if err != nil {
