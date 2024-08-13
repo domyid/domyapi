@@ -458,9 +458,9 @@ func CekStatusApproval(w http.ResponseWriter, r *http.Request) {
 
 	// Cek status approval
 	if approvalData.Status {
-		at.WriteJSON(w, http.StatusOK, "BAP sudah di Approve!")
+		at.WriteJSON(w, http.StatusOK, "true")
 	} else {
-		at.WriteJSON(w, http.StatusOK, "BAP belum di Approve!")
+		at.WriteJSON(w, http.StatusOK, "false")
 	}
 }
 
