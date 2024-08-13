@@ -423,11 +423,57 @@ func ApproveBAP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.ModifiedCount == 0 {
-		http.Error(w, "No document was updated", http.StatusInternalServerError)
+		http.Error(w, "BAP telah disetujui!", http.StatusInternalServerError)
 		return
 	}
 
-	at.WriteJSON(w, http.StatusOK, "BAP berhasil di Approve! hubungi dosen terkait untuk cetak BAP nya")
+	at.WriteJSON(w, http.StatusOK, "BAP berhasil di Approve!")
+}
+
+func CekStatusApproval(w http.ResponseWriter, r *http.Request) {
+	// Mengambil nohp dari header
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Mengambil token dari database berdasarkan nohp
+	tokenData, err := atdb.GetOneDoc[struct {
+		UserID string `bson:"user_id"`
+	}](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil || tokenData.UserID == "" {
+		fmt.Println("Error Fetching Token or User ID is empty:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	// Mengambil email_dosen berdasarkan user_id dari collection users
+	userData, err := atdb.GetOneDoc[struct {
+		EmailDosen string `bson:"email_dosen"`
+	}](config.Mongoconn, "users", primitive.M{"user_id": tokenData.UserID})
+	if err != nil || userData.EmailDosen == "" {
+		fmt.Println("Error Fetching User Data or Email Dosen is empty:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Data pengguna tidak ditemukan!")
+		return
+	}
+
+	// Fetch approval status dari collection approvalbap berdasarkan email dosen
+	approvalData, err := atdb.GetOneDoc[struct {
+		Status bool `bson:"status"`
+	}](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": userData.EmailDosen})
+	if err != nil {
+		fmt.Println("Error Fetching Approval Status:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Data approval tidak ditemukan!")
+		return
+	}
+
+	// Cek status approval
+	if approvalData.Status {
+		at.WriteJSON(w, http.StatusOK, "BAP sudah di Approve!")
+	} else {
+		at.WriteJSON(w, http.StatusOK, "BAP belum di Approve!")
+	}
 }
 
 var (

@@ -205,7 +205,6 @@ type BAP struct {
 
 type ApprovalBAP struct {
 	Status     bool   `json:"status"`
-	DataID     string `json:"dataid"`
 	EmailDosen string `json:"email_dosen"`
 }
 

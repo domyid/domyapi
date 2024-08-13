@@ -39,6 +39,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetBAP(w, r)
 	case method == "POST" && path == "/ApproveBAP":
 		controller.ApproveBAP(w, r)
+	case method == "POST" && path == "/StatusApproval":
+		controller.CekStatusApproval(w, r)
 	case method == "GET" && path == "/data/list/ta":
 		controller.GetListTugasAkhirMahasiswa(w, r)
 	case method == "POST" && path == "/data/list/bimbingan":
