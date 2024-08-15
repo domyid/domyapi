@@ -116,7 +116,7 @@ func LoginRequest(client *http.Client, userReq model.ResponseLogin) (*model.Resp
 		"sessdata":  {""},
 		"kodemodul": {"siakad"},
 		"koderole":  {userReq.Role},
-		"kodeunit":  {"55301"},
+		"kodeunit":  {"62301"},
 	}
 
 	req, err := http.NewRequest("POST", loginURL, strings.NewReader(formData.Encode()))
