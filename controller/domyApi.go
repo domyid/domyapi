@@ -541,60 +541,60 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 		kelas := jadwal.Kelas
 		dataIDDosen := jadwal.DataIIDDosen
 
-		// Check if BAP is approved by matching email
-		approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": dataIDDosen})
-		if err != nil || !approval.Status {
-			at.WriteJSON(w, http.StatusForbidden, "BAP belum di approval")
-			return
-		}
-
-		// Fetch list absensi using the data ID
-		riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Fetch absensi kelas
-		absensiKelas, err := api.FetchAbsensiKelas(noHp, kelas, requestData.Periode)
-		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// Fetch list nilai using the data ID
-		listNilai, err := api.FetchNilai(dataID, tokenData.Token)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Combine results
-		result := model.BAP{
-			Kode:            kode,
-			ProgramStudi:    programStudi,
-			MataKuliah:      mataKuliah,
-			SKS:             sks,
-			SMT:             smt,
-			Kelas:           kelas,
-			RiwayatMengajar: riwayatMengajar,
-			AbsensiKelas:    absensiKelas,
-			ListNilai:       listNilai,
-		}
-
-		// Fetch dosen data based on dataID
-		dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", bson.M{"email": dataIDDosen})
-		if err != nil {
-			http.Error(w, "Failed to fetch Dosen data", http.StatusInternalServerError)
-			return
-		}
-
 		var buf *bytes.Buffer
 		var fileName string
 
-		// Check the program studi and decide whether to generate PDF with or without signature
+		// Jika program studi adalah "D4 Teknik Informatika", lakukan approval check
 		if programStudi == "D4 Teknik Informatika" {
-			// Create QR code link
+			// Check if BAP is approved by matching email
+			approval, err := atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": dataIDDosen})
+			if err != nil || !approval.Status {
+				at.WriteJSON(w, http.StatusForbidden, "BAP belum di approval")
+				return
+			}
+
+			// Fetch list absensi using the data ID
+			riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Fetch absensi kelas
+			absensiKelas, err := api.FetchAbsensiKelas(noHp, kelas, requestData.Periode)
+			if err != nil {
+				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			// Fetch list nilai using the data ID
+			listNilai, err := api.FetchNilai(dataID, tokenData.Token)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Combine results
+			result := model.BAP{
+				Kode:            kode,
+				ProgramStudi:    programStudi,
+				MataKuliah:      mataKuliah,
+				SKS:             sks,
+				SMT:             smt,
+				Kelas:           kelas,
+				RiwayatMengajar: riwayatMengajar,
+				AbsensiKelas:    absensiKelas,
+				ListNilai:       listNilai,
+			}
+
+			// Fetch dosen data based on dataID
+			dosen, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", bson.M{"email": dataIDDosen})
+			if err != nil {
+				http.Error(w, "Failed to fetch Dosen data", http.StatusInternalServerError)
+				return
+			}
+
+			// Create QR code link for PDF with signature and QR code
 			docID := generateDocID(time.Now().String())
 			signatureData := model.SignatureData{
 				PenandaTangan:   "Roni Andarsyah",
@@ -612,6 +612,40 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
+			// Fetch list absensi using the data ID
+			riwayatMengajar, err := api.FetchRiwayatPerkuliahan(dataID, tokenData.Token)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Fetch absensi kelas
+			absensiKelas, err := api.FetchAbsensiKelas(noHp, kelas, requestData.Periode)
+			if err != nil {
+				at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			// Fetch list nilai using the data ID
+			listNilai, err := api.FetchNilai(dataID, tokenData.Token)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Combine results
+			result := model.BAP{
+				Kode:            kode,
+				ProgramStudi:    programStudi,
+				MataKuliah:      mataKuliah,
+				SKS:             sks,
+				SMT:             smt,
+				Kelas:           kelas,
+				RiwayatMengajar: riwayatMengajar,
+				AbsensiKelas:    absensiKelas,
+				ListNilai:       listNilai,
+			}
+
 			// Generate PDF without signature
 			buf, fileName, err = pdf.GenerateBAPPDFwithoutsignature(result)
 			if err != nil {
@@ -619,7 +653,6 @@ func GetBAP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-
 		// Fetch GitHub credentials from database
 		gh, err := atdb.GetOneDoc[model.Ghcreates](config.Mongoconn, "github", bson.M{})
 		if err != nil {
