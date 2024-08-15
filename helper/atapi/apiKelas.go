@@ -123,24 +123,51 @@ func FetchRiwayatPerkuliahan(dataID, token string) ([]model.RiwayatMengajar, err
 
 	// Select the specific table inside the div with class 'table-responsive'
 	doc.Find(".table-responsive table.dataTable tbody tr").Each(func(i int, s *goquery.Selection) {
+		// Mengambil pertemuan dari elemen <td class="text-right"> pertama
 		pertemuan := strings.TrimSpace(s.Find("td.text-right").Eq(0).Text())
-		tanggal := strings.TrimSpace(s.Find("td.text-center").Eq(0).Text())
-		jam := strings.TrimSpace(s.Find("td.text-center").Eq(0).Next().Text())
 
-		// Handle Rencana & Realisasi Materi
+		// Mengambil tanggal dan jam dari elemen <td class="text-center">
+		tanggalJam := strings.TrimSpace(s.Find("td.text-center").Eq(0).Text())
+		tanggalJamSplit := strings.Split(tanggalJam, "\n")
+
+		// Mengambil tanggal dari baris pertama
+		tanggal := strings.TrimSpace(tanggalJamSplit[0])
+
+		// Mengambil jam dari baris kedua, jika ada
+		jam := ""
+		if len(tanggalJamSplit) > 1 {
+			jam = strings.TrimSpace(tanggalJamSplit[1])
+		}
+
+		// Mengambil rencana materi dan realisasi materi dari elemen <td class="word-wrap">
+		contents := s.Find("td.word-wrap").Eq(0).Contents()
 		var rencanaMateri, realisasiMateri string
-		rencanaRealisasi := strings.Split(s.Find("td.word-wrap").Eq(0).Text(), "\n")
-		if len(rencanaRealisasi) > 0 {
-			rencanaMateri = strings.TrimSpace(rencanaRealisasi[0])
-		}
-		if len(rencanaRealisasi) > 1 {
-			realisasiMateri = strings.TrimSpace(rencanaRealisasi[len(rencanaRealisasi)-1])
-		}
+		var afterHR bool
+		contents.Each(func(i int, sel *goquery.Selection) {
+			if goquery.NodeName(sel) == "hr" {
+				afterHR = true
+			} else if goquery.NodeName(sel) == "#text" {
+				if afterHR {
+					realisasiMateri += strings.TrimSpace(sel.Text()) + " "
+				} else {
+					rencanaMateri += strings.TrimSpace(sel.Text()) + " "
+				}
+			}
+		})
+		rencanaMateri = strings.TrimSpace(rencanaMateri)
+		realisasiMateri = strings.TrimSpace(realisasiMateri)
 
+		// Mengambil nama pengajar dari elemen <td class="word-wrap"> kedua
 		pengajar := strings.TrimSpace(s.Find("td.word-wrap").Eq(1).Text())
-		ruang := strings.TrimSpace(s.Find("td.text-center").Eq(2).Text())
-		hadir := strings.TrimSpace(s.Find("td.text-right").Eq(0).Text())
-		persentase := strings.TrimSpace(s.Find("td.text-right").Eq(1).Text())
+
+		// Mengambil ruang dari elemen <td class="text-center"> kedua
+		ruang := strings.TrimSpace(s.Find("td.text-center").Eq(1).Text())
+
+		// Mengambil jumlah kehadiran dari elemen <td class="text-right"> kedua
+		hadir := strings.TrimSpace(s.Find("td.text-right").Eq(1).Text())
+
+		// Mengambil persentase kehadiran dari elemen <td class="text-right"> ketiga
+		persentase := strings.TrimSpace(s.Find("td.text-right").Eq(2).Text())
 
 		if pertemuan != "" {
 			riwayat := model.RiwayatMengajar{
