@@ -102,30 +102,39 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 
 	var noHp string
 
-	// Ambil dan simpan data mahasiswa atau dosen
-	if reqLogin.Role == "mhs" {
-		noHp, err = saveMahasiswaData(client, res.Session, reqLogin.Email)
+	// Extract and validate dosen data if the role is "dosen"
+	if reqLogin.Role == "dosen" {
+		dosen, err := helper.ExtractDosenData(map[string]string{
+			"SIAKAD_CLOUD_ACCESS": res.Session,
+		})
 		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			at.WriteJSON(w, http.StatusInternalServerError, "Failed to extract dosen data")
 			return
 		}
-	} else if reqLogin.Role == "dosen" {
+
+		// Validate the extracted data
+		if dosen.NIP == "" || dosen.NIDN == "" || dosen.Nama == "" || dosen.NoHp == "" {
+			at.WriteJSON(w, http.StatusBadRequest, "Data dosen tidak lengkap. Silakan lengkapi data Anda di Siakad.")
+			return
+		}
+
+		// Save the validated dosen data
 		noHp, err = saveDosenData(client, res.Session, reqLogin.Email)
 		if err != nil {
 			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		// Check if ApprovalBAP document already exists
-		_, err := atdb.GetOneDoc[model.Dosen](config.Mongoconn, "dosen", primitive.M{"email": reqLogin.Email})
-		if err != nil {
-			at.WriteJSON(w, http.StatusInternalServerError, "Failed to fetch dosen data")
+		// Cek apakah noHp (nomor telepon) ditemukan
+		if noHp == "" {
+			at.WriteJSON(w, http.StatusBadRequest, "Nomor telepon tidak ditemukan. Silakan lengkapi data Anda di Siakad sebelum melanjutkan.")
 			return
 		}
 
+		// Check if ApprovalBAP document already exists
 		_, err = atdb.GetOneDoc[model.ApprovalBAP](config.Mongoconn, "approvalbap", primitive.M{"emaildosen": reqLogin.Email})
 		if err != nil {
-			// Jika approvalBAP tidak ditemukan, insert data baru
+			// If approvalBAP is not found, insert new data
 			approvalBAP := model.ApprovalBAP{
 				Status:     false,
 				EmailDosen: reqLogin.Email,
@@ -137,18 +146,40 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
+	} else if reqLogin.Role == "mhs" {
+		// Handle mahasiswa role
+		mahasiswa, err := helper.ExtractMahasiswaData(map[string]string{
+			"SIAKAD_CLOUD_ACCESS": res.Session,
+		})
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, "Failed to extract mahasiswa data")
+			return
+		}
+
+		// Validate the extracted data
+		if mahasiswa.NIM == "" || mahasiswa.Nama == "" || mahasiswa.NomorHp == "" {
+			at.WriteJSON(w, http.StatusBadRequest, "Data mahasiswa tidak lengkap. Silakan lengkapi data Anda di Siakad.")
+			return
+		}
+
+		// Save the validated mahasiswa data
+		noHp, err = saveMahasiswaData(client, res.Session, reqLogin.Email)
+		if err != nil {
+			at.WriteJSON(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Validate noHp (phone number)
+		if noHp == "" {
+			at.WriteJSON(w, http.StatusBadRequest, "Nomor telepon tidak ditemukan. Silakan lengkapi data Anda di Siakad sebelum melanjutkan.")
+			return
+		}
 	}
 
-	// Check if noHp (phone number) is available
-	if noHp == "" {
-		at.WriteJSON(w, http.StatusBadRequest, "Nomor telepon tidak ditemukan. Silakan lengkapi data Anda di Siakad sebelum melanjutkan.")
-		return
-	}
-
-	// Cek apakah user_id sudah ada di database
+	// Check if user_id already exists in the database
 	existingTokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"user_id": reqLogin.Email})
 	if err != nil {
-		// Jika user_id tidak ditemukan, insert data baru
+		// If user_id is not found, insert new token data
 		tokenData := model.TokenData{
 			UserID:    reqLogin.Email,
 			Token:     res.Session,
@@ -167,7 +198,7 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 		}
 		at.WriteJSON(w, http.StatusOK, tokenData)
 	} else {
-		// Jika user_id ditemukan, perbarui token yang ada
+		// If user_id is found, update the existing token data
 		update := bson.M{
 			"$set": bson.M{
 				"token":      res.Session,
