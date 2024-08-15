@@ -123,31 +123,19 @@ func FetchRiwayatPerkuliahan(dataID, token string) ([]model.RiwayatMengajar, err
 
 	// Select the specific table inside the div with class 'table-responsive'
 	doc.Find(".table-responsive table.dataTable tbody tr").Each(func(i int, s *goquery.Selection) {
-		pertemuan := strings.TrimSpace(s.Find("td.text-center").Eq(0).Text())
-		tanggalJam := strings.TrimSpace(s.Find("td.text-center").Eq(1).Text())
-		tanggalJamSplit := strings.Split(tanggalJam, "\n")
-		tanggal := strings.TrimSpace(tanggalJamSplit[0])
-		jam := ""
-		if len(tanggalJamSplit) > 1 {
-			jam = strings.TrimSpace(tanggalJamSplit[1])
-		}
+		pertemuan := strings.TrimSpace(s.Find("td.text-right").Eq(0).Text())
+		tanggal := strings.TrimSpace(s.Find("td.text-center").Eq(0).Text())
+		jam := strings.TrimSpace(s.Find("td.text-center").Eq(0).Next().Text())
 
+		// Handle Rencana & Realisasi Materi
 		var rencanaMateri, realisasiMateri string
-		contents := s.Find("td.word-wrap").Eq(0).Contents()
-		var afterHR bool
-		contents.Each(func(i int, sel *goquery.Selection) {
-			if goquery.NodeName(sel) == "hr" {
-				afterHR = true
-			} else if goquery.NodeName(sel) == "#text" {
-				if afterHR {
-					realisasiMateri += strings.TrimSpace(sel.Text()) + " "
-				} else {
-					rencanaMateri += strings.TrimSpace(sel.Text()) + " "
-				}
-			}
-		})
-		rencanaMateri = strings.TrimSpace(rencanaMateri)
-		realisasiMateri = strings.TrimSpace(realisasiMateri)
+		rencanaRealisasi := strings.Split(s.Find("td.word-wrap").Eq(0).Text(), "\n")
+		if len(rencanaRealisasi) > 0 {
+			rencanaMateri = strings.TrimSpace(rencanaRealisasi[0])
+		}
+		if len(rencanaRealisasi) > 1 {
+			realisasiMateri = strings.TrimSpace(rencanaRealisasi[len(rencanaRealisasi)-1])
+		}
 
 		pengajar := strings.TrimSpace(s.Find("td.word-wrap").Eq(1).Text())
 		ruang := strings.TrimSpace(s.Find("td.text-center").Eq(2).Text())
