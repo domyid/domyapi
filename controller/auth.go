@@ -3,6 +3,7 @@ package domyApi
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
@@ -111,6 +112,9 @@ func LoginSiakad(w http.ResponseWriter, req *http.Request) {
 			at.WriteJSON(w, http.StatusInternalServerError, "Failed to extract dosen data")
 			return
 		}
+
+		// Log the extracted dosen data for debugging
+		log.Printf("Extracted Dosen Data: %+v", dosen)
 
 		// Validate the extracted data
 		if dosen.NIP == "" || dosen.NIDN == "" || dosen.Nama == "" || dosen.NoHp == "" {
