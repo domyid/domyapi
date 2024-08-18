@@ -34,12 +34,19 @@ type RequestLoginSiakad struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	Role     string `json:"role"`
+	Prodi    string `json:"prodi"`
 }
 
 type ResponseLogin struct {
-	Code    string `json:"code"`
-	Session string `json:"session"`
-	Role    string `json:"role"`
+	Code     string `json:"code"`
+	Session  string `json:"session"`
+	Role     string `json:"role"`
+	KodeUnit string `json:"kodeunit"`
+}
+
+type Fakultas struct {
+	KodeUnit string `json:"kodeunit" bson:"kodeunit"`
+	Prodi    string `json:"prodi" bson:"prodi"`
 }
 
 type TokenData struct {

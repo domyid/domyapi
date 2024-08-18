@@ -9,10 +9,22 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	config "github.com/domyid/domyapi/config"
+	atdb "github.com/domyid/domyapi/helper/atdb"
 	model "github.com/domyid/domyapi/model"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.ResponseLogin, error) {
+	// Step 1: Fetch the `Fakultas` collection from MongoDB to find the corresponding `KodeUnit` for the provided `Prodi`
+	var fakultas model.Fakultas
+	fakultas, err := atdb.GetOneDoc[model.Fakultas](config.Mongoconn, "fakultas", bson.M{"prodi": reqLogin.Prodi})
+	if err != nil {
+		fmt.Println("Error fetching KodeUnit from database:", err)
+		return nil, err
+	}
+
+	// The rest of the login process remains unchanged
 	loginURL := "https://siakad.ulbi.ac.id/gate/login"
 	resp, err := client.Get(loginURL)
 	if err != nil {
@@ -21,21 +33,18 @@ func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.Res
 	}
 	defer resp.Body.Close()
 
-	// Read the body of the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return nil, err
 	}
 
-	// Parse the HTML to find the token
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil {
 		fmt.Println("Error parsing HTML:", err)
 		return nil, err
 	}
 
-	// Find the token value
 	token, exists := doc.Find("input[name=__token]").Attr("value")
 	if !exists {
 		fmt.Println("Token not found")
@@ -48,7 +57,6 @@ func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.Res
 		return nil, errors.New("client ID not found")
 	}
 
-	// Form data for login request
 	formData := url.Values{
 		"email":        {reqLogin.Email},
 		"password":     {reqLogin.Password},
@@ -58,7 +66,6 @@ func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.Res
 		"redirect_uri": {"https://siakad.ulbi.ac.id/gate/authsso"},
 	}
 
-	// Create a new request for login
 	req, err := http.NewRequest("POST", loginURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		fmt.Println("Error creating login request:", err)
@@ -67,17 +74,14 @@ func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.Res
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
-	// Send the login request
 	loginResp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error sending login request:", err)
 		return nil, err
 	}
 	defer loginResp.Body.Close()
-	// Print all headers from the login response
 
 	redirectURL := loginResp.Header.Get("Sx-Referer")
-
 	u, err := url.Parse(redirectURL)
 	if err != nil {
 		fmt.Println("Error parsing redirect URL:", err)
@@ -95,13 +99,15 @@ func LoginAct(client http.Client, reqLogin model.RequestLoginSiakad) (*model.Res
 		return nil, errors.New("no session found")
 	}
 
+	// Step 2: Add the `KodeUnit` from the database to the response
 	result := &model.ResponseLogin{
-		Session: loginResp.Header.Get("Sx-Session"),
-		Code:    code,
-		Role:    reqLogin.Role,
+		Session:  loginResp.Header.Get("Sx-Session"),
+		Code:     code,
+		Role:     reqLogin.Role,
+		KodeUnit: fakultas.KodeUnit, // Set the KodeUnit in the response
 	}
-	return result, nil
 
+	return result, nil
 }
 
 func LoginRequest(client *http.Client, userReq model.ResponseLogin) (*model.ResponseLogin, error) {
@@ -116,7 +122,7 @@ func LoginRequest(client *http.Client, userReq model.ResponseLogin) (*model.Resp
 		"sessdata":  {""},
 		"kodemodul": {"siakad"},
 		"koderole":  {userReq.Role},
-		"kodeunit":  {"62301"},
+		"kodeunit":  {userReq.KodeUnit},
 	}
 
 	req, err := http.NewRequest("POST", loginURL, strings.NewReader(formData.Encode()))
