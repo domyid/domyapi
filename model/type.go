@@ -126,6 +126,15 @@ type DetailBimbingan struct {
 	Act            string
 }
 
+type RekapBimbingan struct {
+	JudulProposal      string `json:"judul_proposal"`
+	SesiBahasan        string `json:"sesi_bahasan"`
+	NIM                string `json:"nim"`
+	Mahasiswa          string `json:"mahasiswa"`
+	PembimbingProposal string `json:"pembimbing_proposal"`
+	Percakapan         string `json:"percakapan"`
+}
+
 type TugasAkhirAllMahasiswa struct {
 	Nama         string `bson:"nama,omitempty" json:"nama"`
 	NIM          string `bson:"nim,omitempty" json:"nim"`

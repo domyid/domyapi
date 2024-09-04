@@ -47,6 +47,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetListBimbinganMahasiswa(w, r)
 	case method == "POST" && path == "/approve/bimbingan":
 		controller.ApproveBimbingan(w, r)
+	case method == "POST" && path == "/BKD":
+		controller.GenerateBAPBimbingan(w, r)
 	default:
 		controller.NotFound(w, r)
 	}

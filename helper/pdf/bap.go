@@ -298,6 +298,52 @@ func GenerateBAPPDFwithoutsignature(data model.BAP) (*bytes.Buffer, string, erro
 	return &buf, fileName, nil
 }
 
+func GenerateBKD(data model.RekapBimbingan) (*bytes.Buffer, string, error) {
+	// Text for the header
+	Text := []string{
+		"UNIVERSITAS LOGISTIK DAN BISNIS INTERNASIONAL",
+		"Jl. Sari Asih No.54, Sarijadi, Kec. Sukasari, Kota Bandung, Jawa Barat 40151",
+		"Website : www.ulbi.ac.id/ e-Mail :info@ulbi.ac.id / Telepon :081311110194",
+	}
+
+	// Initial setup for the PDF
+	pdf := CreateHeaderBAP(Text, 90)
+
+	// Adding more details (this can be customized further)
+	pdf.SetFont("Arial", "", 12)
+	pdf.Cell(0, 10, fmt.Sprintf("Judul Proposal: %s", data.JudulProposal))
+	pdf.Ln(7)
+	pdf.Cell(0, 10, fmt.Sprintf("Sesi / Bahasan: %s", data.SesiBahasan))
+	pdf.Ln(7)
+
+	// Splitting Mahasiswa into NIM and Name
+	mahasiswaDetails := fmt.Sprintf("%s - %s", data.NIM, data.Mahasiswa)
+	pdf.Cell(0, 10, fmt.Sprintf("Mahasiswa: %s", mahasiswaDetails))
+	pdf.Ln(7)
+
+	pdf.Cell(0, 10, fmt.Sprintf("Pembimbing Proposal: %s", data.PembimbingProposal))
+	pdf.Ln(10)
+
+	if data.Percakapan != "" {
+		pdf.Cell(0, 10, "Percakapan:")
+		pdf.Ln(7)
+		pdf.MultiCell(0, 10, data.Percakapan, "", "", false)
+	} else {
+		pdf.Cell(0, 10, "Tidak ada data percakapan")
+	}
+	pdf.Ln(10)
+
+	// Saving the PDF to a buffer
+	fileName := fmt.Sprintf("BAP-%s.pdf", sanitizeFileName(data.NIM))
+	var buf bytes.Buffer
+	err := pdf.Output(&buf)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &buf, fileName, nil
+}
+
 func CreateToken(docID, url string, data model.SignatureData) string {
 	resp := new(model.TokenResp)
 	body := new(model.RequestData)

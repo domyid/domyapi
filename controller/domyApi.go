@@ -888,6 +888,76 @@ func ApproveBimbingan(w http.ResponseWriter, r *http.Request) {
 	at.WriteJSON(w, http.StatusOK, responseData)
 }
 
+func GenerateBAPBimbingan(w http.ResponseWriter, r *http.Request) {
+	initStringBuilderPool()
+
+	noHp := r.Header.Get("nohp")
+	if noHp == "" {
+		http.Error(w, "No valid phone number found", http.StatusForbidden)
+		return
+	}
+
+	// Get token from database based on noHp
+	tokenData, err := atdb.GetOneDoc[model.TokenData](config.Mongoconn, "tokens", primitive.M{"nohp": noHp})
+	if err != nil {
+		fmt.Println("Error Fetching Token:", err)
+		at.WriteJSON(w, http.StatusNotFound, "Token tidak ditemukan! Silahkan Login Kembali")
+		return
+	}
+
+	// Fetch list of NIM and DataID for Tugas Akhir based on noHp
+	nimDataIDList, err := api.GetDataIDListFromTugasAkhir(noHp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var bapList []map[string]string
+
+	// Iterate over each NIM and DataID pair to generate the BAP Bimbingan
+	for _, nimDataID := range nimDataIDList {
+		// Get the Bimbingan data
+		rekapList, err := api.GetRekapBimbinganList(nimDataID["DataID"], tokenData.Token)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		for _, rekap := range rekapList {
+			// Generate PDF for each rekap
+			_, fileName, err := pdf.GenerateBKD(rekap)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Generate the URL for the PDF with a combined path
+			filePath := "/buktiajar/2023-2/" + fileName
+			additionalPath := "/sk/2324-2/SK_120_Pembimbing_Internship_II_D4_TI_Vokasi-ULBI_Genap_2023-2024.pdf"
+			combinedPath := additionalPath + "&" + filePath
+			filePathEncoded := base64.StdEncoding.EncodeToString([]byte("#" + combinedPath))
+
+			strPol := PoolStringBuilder.Get().(*strings.Builder)
+			defer func() {
+				strPol.Reset()
+				PoolStringBuilder.Put(strPol)
+			}()
+
+			strPol.WriteString("https://repo.ulbi.ac.id/view/#" + filePathEncoded)
+
+			// Add the generated URL to the BAP list with NIM
+			bapEntry := map[string]string{
+				"nim": nimDataID["NIM"],
+				"url": strPol.String(),
+			}
+			bapList = append(bapList, bapEntry)
+		}
+	}
+
+	// Return the list of URLs for BAP Bimbingan
+	at.WriteJSON(w, http.StatusOK, bapList)
+}
+
 func NotFound(respw http.ResponseWriter, req *http.Request) {
 	var resp model.Response
 	resp.Response = "Not Found"

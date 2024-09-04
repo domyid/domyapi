@@ -81,6 +81,34 @@ func GetDataIDFromTugasAkhir(noHp, nim string) (string, error) {
 	return "", fmt.Errorf("no valid data ID found for the given NIM")
 }
 
+func GetDataIDListFromTugasAkhir(noHp string) ([]map[string]string, error) {
+	// Fetch the list of Tugas Akhir for all students
+	listTA, err := FetchListTugasAkhirMahasiswa(noHp)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a list to store NIM and DataID pairs
+	var dataIDList []map[string]string
+
+	// Iterate through the list and collect NIM and DataID pairs
+	for _, ta := range listTA {
+		if ta.DataID != "" && ta.NIM != "" {
+			dataEntry := map[string]string{
+				"NIM":    ta.NIM,
+				"DataID": ta.DataID,
+			}
+			dataIDList = append(dataIDList, dataEntry)
+		}
+	}
+
+	if len(dataIDList) == 0 {
+		return nil, fmt.Errorf("no valid data IDs found for the given phone number")
+	}
+
+	return dataIDList, nil
+}
+
 func FetchListBimbingan(dataID, token string) ([]model.ListBimbingan, error) {
 	// URL target untuk mendapatkan data list bimbingan
 	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingan/%s", dataID)
@@ -193,4 +221,69 @@ func ApproveBimbingan(bimbinganID, token string, data model.DetailBimbingan) err
 	}
 
 	return nil
+}
+
+func GetRekapBimbinganList(dataID, token string) ([]model.RekapBimbingan, error) {
+	// URL target untuk mendapatkan data rekap bimbingan
+	urlTarget := fmt.Sprintf("https://siakad.ulbi.ac.id/siakad/list_bimbingankonsultasi/printall/%s", dataID)
+
+	// Buat payload berisi informasi token
+	payload := map[string]string{
+		"SIAKAD_CLOUD_ACCESS": token,
+	}
+
+	// Mengirim permintaan untuk mengambil data rekap bimbingan
+	doc, err := GetData(urlTarget, payload, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching data: %v", err)
+	}
+
+	// Ekstrak informasi dari respon
+	var rekapList []model.RekapBimbingan
+
+	doc.Find("table").Each(func(i int, table *goquery.Selection) {
+		// Ambil Judul Proposal
+		judulProposal := strings.TrimSpace(table.Eq(0).Find("tbody tr td").Eq(1).Text())
+
+		// Ambil Sesi / Bahasan
+		sesiBahasan := strings.TrimSpace(table.Eq(1).Find("tbody tr").Eq(0).Find("td").Eq(1).Text())
+
+		// Ambil Mahasiswa dan pisahkan NIM dan Nama
+		mahasiswaRaw := strings.TrimSpace(table.Eq(1).Find("tbody tr").Eq(1).Find("td").Eq(1).Text())
+		mahasiswaParts := strings.SplitN(mahasiswaRaw, "-", 2)
+		var nim, nama string
+		if len(mahasiswaParts) == 2 {
+			nim = strings.TrimSpace(mahasiswaParts[0])
+			nama = strings.TrimSpace(mahasiswaParts[1])
+		} else {
+			nim = mahasiswaRaw
+			nama = ""
+		}
+
+		// Ambil Pembimbing Proposal
+		pembimbingProposal := strings.TrimSpace(table.Eq(1).Find("tbody tr").Eq(1).Find("td").Eq(3).Text())
+
+		// Ambil Percakapan
+		percakapan := table.Eq(2).Find("tbody tr td").Text()
+		if strings.Contains(percakapan, "Tidak ada data percakapan") {
+			percakapan = ""
+		} else {
+			percakapan = strings.TrimSpace(percakapan)
+		}
+
+		// Buat rekap bimbingan baru
+		rekap := model.RekapBimbingan{
+			JudulProposal:      judulProposal,
+			SesiBahasan:        sesiBahasan,
+			NIM:                nim,  // NIM from split
+			Mahasiswa:          nama, // Name from split
+			PembimbingProposal: pembimbingProposal,
+			Percakapan:         percakapan,
+		}
+
+		// Tambahkan ke list rekap bimbingan
+		rekapList = append(rekapList, rekap)
+	})
+
+	return rekapList, nil
 }
